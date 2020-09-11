@@ -36,6 +36,7 @@
 
 import openreview
 import logging
+import sys
 from PIL import Image
 import numpy as np
 import time
@@ -68,9 +69,21 @@ class Paper:
 
 
 DEFAULT_SOURCES = [
-    ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
-               decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision")
+    # TODO(...): Need to work a bit more with the 'accept' extraction on the ICLR thingies
+    # ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
+    #           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Official_Review"),
+    # ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
+    #           decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
 
+    # TODO(..): All seems to be accepted in 2018 and 2020? Bug? I did not run all of it, might be that all of the reject is at the end
+    #ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
+    #           decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
+    #ScrapeURLs(submission_notes="MIDL.io/2020/Conference/-/Blind_Submission",
+    #           decision_notes="MIDL.io/2020/Conference/Paper.*/-/Decision"),
+
+    # This one works as it should!
+    ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
+               decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
@@ -97,6 +110,30 @@ class OpenReviewScraper:
 
         self.logging.info(f"Successfully connected")
 
+    def __is_accepted(self, note):
+        """This applies heuristics to see if a paper is accepted."""
+
+        # If the paper is from MIDL it is nice, because they have an decision field
+        # We can simply look in that field and extract the information
+        # Apparently for some years the ICLR also have this decision field, which is nice
+        if "decision" in note.content:
+            # TODO(...): Improve this heuristic
+            return (("Accept" in note.content["decision"])  # If it contains Accept it is accept
+                    or ("Poster" == note.content["decision"])  # In MIDL 2018 decisions are (Reject | Oral | Poster)
+                    or ("Oral" == note.content["decision"])  # In MIDL 2018 decisions are (Reject | Oral | Poster)
+                    )
+
+        # If it is from ICLR and it is not a year with decision field its a bit more tedious --
+        # Instead in their 'Official Reviews' there is a field called 'rating'
+        # The first character of the rating is a number 0-9 if it is larger than 5 it appears to be accepted.
+        if 'rating' in note.content:
+            # TODO(..): Work on this heuristic
+            if int(note.content['rating'][0]) > 5:
+                return True
+            return False
+
+        raise Exception("Cannot determine if a paper is accepted or not.")
+
     def __call__(self, sources: List[ScrapeURLs] = None) -> Iterator[Paper]:
         """Scrapes openReview for papers.
 
@@ -116,19 +153,22 @@ class OpenReviewScraper:
 
         for source in sources:
             self.logging.info(f"Scraping {source}")
-            decision_notes = {note.forum: note.content["decision"]
+            decision_notes = {note.forum: self.__is_accepted(note)
                               for note in openreview.tools.iterget_notes(self.client,
                                                                          invitation=source.decision_notes)}
 
-            for note in openreview.tools.iterget_notes(self.client, invitation=source.submission_notes):
+            number_decisions = len(decision_notes)
+            self.logging.info(f"Number of decisions: {number_decisions}")
+
+            for index, note in enumerate(openreview.tools.iterget_notes(self.client, invitation=source.submission_notes)):
                 try:
                     yield Paper(id=note.id,
                                 authors=note.content["authors"],
                                 title=note.content["title"],
                                 abstract=note.content["abstract"],
                                 pdf=self.client.get_pdf(note.id),
-                                accepted=decision_notes[note.id] == "Accept")
-                    self.logging.info(f"Downloaded {note.content['title']}")
+                                accepted=decision_notes[note.id])
+                    self.logging.info(f"({index} / {number_decisions}) Downloaded {note.content['title']} -- Accepted: {decision_notes[note.id]}")
                 except openreview.openreview.OpenReviewException as e:
                     self.logging.warning(f"Failed to create paper from {note.id}, reason: {str(e)}")
                 except KeyError as e:
@@ -306,5 +346,3 @@ if __name__ == "__main__":
                  open_review_username=args.username, open_review_password=args.password)
 
     logger.info(f"Construction of dataset took {time.time() - timestamp} seconds")
-
-
