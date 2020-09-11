@@ -1,0 +1,8 @@
+pytest>=5.3.5
+numpy>=1.16.2
+torch>=1.5.0
+matplotlib>=3.2.0
+tensorboard>=1.14.0
+torchvision
+tensorflow
+
