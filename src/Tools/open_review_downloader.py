@@ -36,6 +36,8 @@
 
 import openreview
 import logging
+from urllib3.exceptions import MaxRetryError
+from requests.exceptions import ConnectionError
 import sys
 from PIL import Image
 import numpy as np
@@ -76,9 +78,9 @@ DEFAULT_SOURCES = [
     #           decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
 
     # TODO(..): All seems to be accepted in 2018 and 2020? Bug? I did not run all of it, might be that all of the reject is at the end
-    #ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
+    # ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
     #           decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
-    #ScrapeURLs(submission_notes="MIDL.io/2020/Conference/-/Blind_Submission",
+    # ScrapeURLs(submission_notes="MIDL.io/2020/Conference/-/Blind_Submission",
     #           decision_notes="MIDL.io/2020/Conference/Paper.*/-/Decision"),
 
     # This one works as it should!
@@ -160,19 +162,30 @@ class OpenReviewScraper:
             number_decisions = len(decision_notes)
             self.logging.info(f"Number of decisions: {number_decisions}")
 
-            for index, note in enumerate(openreview.tools.iterget_notes(self.client, invitation=source.submission_notes)):
+            for index, note in enumerate(
+                    openreview.tools.iterget_notes(self.client, invitation=source.submission_notes)):
                 try:
-                    yield Paper(id=note.id,
-                                authors=note.content["authors"],
-                                title=note.content["title"],
-                                abstract=note.content["abstract"],
-                                pdf=self.client.get_pdf(note.id),
-                                accepted=decision_notes[note.id])
-                    self.logging.info(f"({index} / {number_decisions}) Downloaded {note.content['title']} -- Accepted: {decision_notes[note.id]}")
+                    paper = Paper(id=note.id,
+                                  authors=note.content["authors"],
+                                  title=note.content["title"],
+                                  abstract=note.content["abstract"],
+                                  pdf=self.client.get_pdf(note.id),
+                                  accepted=decision_notes[note.id])
+                    self.logging.info(
+                        f"({index} / {number_decisions}) Downloaded {note.content['title']} -- Accepted: {decision_notes[note.id]}")
+
+                    # need to have yield after setting variable because otherwise expections are not caught correctly
+                    yield paper
                 except openreview.openreview.OpenReviewException as e:
                     self.logging.warning(f"Failed to create paper from {note.id}, reason: {str(e)}")
                 except KeyError as e:
                     self.logging.warning(f"Failed to create paper from {note.id}, missing field: {str(e)}")
+                except MaxRetryError as e:
+                    self.logging.warning(f"Failed to create paper {note.content['title']} -- Reason: {e}")
+                except ConnectionError as e:
+                    self.logging.warning(f"Failed to create paper {note.content['title']} -- Reason: {e}")
+                except TimeoutError as e:
+                    self.logging.warning(f"Failed to create paper {note.content['title']} -- Reason: {e}")
 
 
 @dataclass
@@ -204,18 +217,28 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
 
         pdf = PyPDF2.PdfFileReader(pdf_stream)
 
-        # Get first page
-        first_page = pdf.getPage(0)
+        # Get first page that is a valid front-page
+        def _is_valid_frontpage(page: PyPDF2.pdf.PageObject) -> bool:
+            # TODO(...) A better heuristic, 50 is completely arbitrary at the moment
+            return len(page.extractText()) > 50
+
+        for page_index in range(pdf.numPages):
+            front_page = pdf.getPage(page_index)
+
+            if _is_valid_frontpage(front_page):
+                break
+        else:
+            raise ValueError("No page is a valid front-page")
 
         # Now get raw pdf data
-        first_page_bytes = io.BytesIO()
+        front_page_bytes = io.BytesIO()
 
         pdf_writer = PyPDF2.PdfFileWriter()
-        pdf_writer.addPage(first_page)
-        pdf_writer.write(first_page_bytes)
+        pdf_writer.addPage(front_page)
+        pdf_writer.write(front_page_bytes)
 
         # pdf2image will create on image per page, but since we only have one we get the first one
-        pil_image = pdf2image.convert_from_bytes(first_page_bytes.getvalue())[0]
+        pil_image = pdf2image.convert_from_bytes(front_page_bytes.getvalue())[0]
 
         image_data = np.array(pil_image)
 
@@ -227,6 +250,8 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
                           accepted=paper.accepted)
     except PdfReadError as e:
         logger.warning(f"Unable to read {paper.title} reason: {e} -- discarding it")
+    except ValueError as e:
+        logger.warning(f"Paper {paper.title} was not converted to ImagePaper, Reason: {e}")
 
 
 def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infix: str = "images") -> None:
@@ -318,10 +343,10 @@ def make_dataset(sources: List[ScrapeURLs],
     logger.info("Fetching papers")
     papers = [paper for paper in OpenReviewScraper(username=open_review_username, password=open_review_password)(
         sources=sources
-    )]
+    ) if paper is not None]
 
     logger.info("Extracting Images")
-    ipapers = [convert_Paper_to_ImagePaper(paper) for paper in papers]
+    ipapers = [paper for paper in map(convert_Paper_to_ImagePaper, papers) if paper is not None]
 
     logger.info("Building dataset")
     ImagePapers_to_dataset(ipapers=ipapers, base_path=dataset_base_path, image_infix="images")

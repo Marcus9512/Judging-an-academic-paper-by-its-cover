@@ -207,3 +207,4 @@ u-net-release/
 /images/
 /data/train/
 /data/label/
+.venv/
