@@ -1,8 +1,5 @@
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
-import matplotlib.pyplot as plt
-from skimage.metrics import (adapted_rand_error,
-                              variation_of_information)
+from PIL import Image
 
 def split_to_training_and_validation(dataset, labels, percent_to_train, percent_to_test):
     assert len(dataset) == len(labels)
@@ -30,3 +27,9 @@ def split_to_training_and_validation(dataset, labels, percent_to_train, percent_
             labels_vl.append(labels[index[i]])
 
     return training, labels_tr, validation, labels_vl, test, labels_test
+
+def print_image_from_array(image: np):
+    image = image.astype('uint8')
+    img = Image.fromarray(image)
+    img.show()
+
