@@ -4,35 +4,8 @@
 # python3 src/Tools/open_review_downloader.py \
 #   --username="USEERNAME_HERE"\
 #   --password="PASSWORD_HERE"\
-#   --base_path="PATH_TO_OUTPUT_DIR_HERE"
-
-# Requirements, put this in a requirements.txt file and run pip3 install -r requirements.txt
-#  certifi==2020.6.20
-#  chardet==3.0.4
-#  cycler==0.10.0
-#  Deprecated==1.2.10
-#  future==0.18.2
-#  idna==2.10
-#  kiwisolver==1.2.0
-#  matplotlib==3.3.1
-#  numpy==1.19.1
-#  openreview-py==1.0.17
-#  pandas==1.1.2
-#  pdf2image==1.14.0
-#  Pillow==7.2.0
-#  pycryptodome==3.9.8
-#  pylatexenc==2.7
-#  pyparsing==2.4.7
-#  PyPDF2==1.26.0
-#  python-dateutil==2.8.1
-#  pytz==2020.1
-#  requests==2.24.0
-#  six==1.15.0
-#  tld==0.10
-#  tqdm==4.48.2
-#  urllib3==1.25.10
-#  wrapt==1.12.1
-
+#   --base_path="PATH_TO_OUTPUT_DIR_HERE"\
+#   --num_threads=10\
 
 import openreview
 import logging
@@ -52,6 +25,8 @@ from typing import Iterator, List, Optional
 import pathlib
 import argparse
 import pandas as pd
+from tqdm import tqdm
+from multiprocessing.pool import ThreadPool
 
 
 @dataclass
@@ -74,18 +49,16 @@ DEFAULT_SOURCES = [
     # TODO(...): Need to work a bit more with the 'accept' extraction on the ICLR thingies
     # ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
     #           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Official_Review"),
-    # ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
 
-    # TODO(..): All seems to be accepted in 2018 and 2020? Bug? I did not run all of it, might be that all of the reject is at the end
-    # ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
-    #           decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
-    # ScrapeURLs(submission_notes="MIDL.io/2020/Conference/-/Blind_Submission",
-    #           decision_notes="MIDL.io/2020/Conference/Paper.*/-/Decision"),
-
-    # This one works as it should!
+    # These ones works as intended
+    ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
+    ScrapeURLs(submission_notes="MIDL.io/2020/Conference/-/Blind_Submission",
+               decision_notes="MIDL.io/2020/Conference/Paper.*/-/Decision"),
     ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
                decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
+    ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
+               decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
@@ -136,7 +109,7 @@ class OpenReviewScraper:
 
         raise Exception("Cannot determine if a paper is accepted or not.")
 
-    def __call__(self, sources: List[ScrapeURLs] = None) -> Iterator[Paper]:
+    def __call__(self, sources: List[ScrapeURLs] = None, num_threads: int = 1) -> Iterator[Paper]:
         """Scrapes openReview for papers.
 
         The pdf field in the returned papers is raw PDF files and
@@ -144,6 +117,7 @@ class OpenReviewScraper:
 
         Args:
             sources: List of sources to scrape - see DEFAULT_SOURCES for example
+            num_threads: How many threads to use while downloading PDF's
 
         Returns:
             An iterator of type Paper
@@ -155,15 +129,25 @@ class OpenReviewScraper:
 
         for source in sources:
             self.logging.info(f"Scraping {source}")
+
+            self.logging.info(f"Downloading decision notes...")
             decision_notes = {note.forum: self.__is_accepted(note)
                               for note in openreview.tools.iterget_notes(self.client,
                                                                          invitation=source.decision_notes)}
-
             number_decisions = len(decision_notes)
-            self.logging.info(f"Number of decisions: {number_decisions}")
+            self.logging.info(f"Downloaded {number_decisions} decision notes")
+            self.logging.info(f"Downloading submission notes...")
+            submission_notes = list(openreview.tools.iterget_notes(self.client, invitation=source.submission_notes))
+            number_submission = len(submission_notes)
+            self.logging.info(f"Downloaded {number_submission} submission notes")
 
-            for index, note in enumerate(
-                    openreview.tools.iterget_notes(self.client, invitation=source.submission_notes)):
+            num_accepted, num_rejected = 0, 0
+
+            def downloader_fn(note: openreview.Note):
+                # Ok with python threads
+                nonlocal num_rejected, num_accepted
+
+                paper = None
                 try:
                     paper = Paper(id=note.id,
                                   authors=note.content["authors"],
@@ -171,11 +155,13 @@ class OpenReviewScraper:
                                   abstract=note.content["abstract"],
                                   pdf=self.client.get_pdf(note.id),
                                   accepted=decision_notes[note.id])
-                    self.logging.info(
-                        f"({index} / {number_decisions}) Downloaded {note.content['title']} -- Accepted: {decision_notes[note.id]}")
 
-                    # need to have yield after setting variable because otherwise expections are not caught correctly
-                    yield paper
+                    # This is okay when using the normal thread-pool since all threads
+                    # run in the same process space & thanks to python's GIL we get no race-errors.
+                    num_accepted += paper.accepted
+                    num_rejected += (1 - paper.accepted)
+
+                    return paper
                 except openreview.openreview.OpenReviewException as e:
                     self.logging.warning(f"Failed to create paper from {note.id}, reason: {str(e)}")
                 except KeyError as e:
@@ -186,6 +172,21 @@ class OpenReviewScraper:
                     self.logging.warning(f"Failed to create paper {note.content['title']} -- Reason: {e}")
                 except TimeoutError as e:
                     self.logging.warning(f"Failed to create paper {note.content['title']} -- Reason: {e}")
+                except Exception as e:
+                    self.logging.warning(
+                        f"Unknown Exception: Failed to create paper {note.content['title']} -- Reason: {e}")
+
+                return paper
+
+            with ThreadPool(processes=num_threads) as pool:
+                with tqdm(total=number_submission) as progress_bar:
+                    for note in pool.imap_unordered(downloader_fn, submission_notes):
+                        # update progress bar
+                        progress_bar.update()
+
+                        yield note
+
+            self.logging.info(f"Accepted: {num_accepted} -- Rejected: {num_rejected}")
 
 
 @dataclass
@@ -209,8 +210,6 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
         Optional[ImagePaper] - a dataclass containing a numpy array of width x height x channels --  or None
     """
     logger = logging.getLogger(LOGGER_NAME)
-    logger.info(f"Attempting to convert PDF {paper.title}")
-
     try:
         # A fake input file
         pdf_stream = io.BytesIO(paper.pdf)
@@ -249,13 +248,19 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
                           image=image_data,
                           accepted=paper.accepted)
     except PdfReadError as e:
-        logger.warning(f"Unable to read {paper.title} reason: {e} -- discarding it")
+        logger.warning(f"PdfReadError: Unable to read {paper.title} reason: {e} -- discarding it")
     except ValueError as e:
-        logger.warning(f"Paper {paper.title} was not converted to ImagePaper, Reason: {e}")
+        logger.warning(f"ValueError: Paper {paper.title} was not converted to ImagePaper, Reason: {e}")
+    except TypeError as e:
+        logger.warning(f"TypeError: Paper {paper.title} was not converted to ImagePaper, Reason: {e}")
+    except Exception as e:
+        logger.warning(f"Unknown Exception: {e} -- Dropping Paper {paper.title}")
 
 
 def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infix: str = "images") -> None:
     """Takes a list of ImagePapers and constructs a csv with meta information and stores images as png files.
+
+    This will lazily download and convert the papers to avoid having it all in memory at once.
 
     Args:
         ipapers: List of ImagePapers
@@ -291,6 +296,7 @@ def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infi
         "image_path": [],
     }
 
+    logger.info(f"Storing papers at -- {base_path}")
     for paper in ipapers:
         # Add all meta features
         meta_features["id"].append(paper.id)
@@ -305,7 +311,6 @@ def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infi
         absolute_image_path = base_path / relative_image_path
         # Write image to disk
 
-        logger.info(f"Storing {paper.title} at -- {absolute_image_path}")
         with open(absolute_image_path, "wb") as image_file:
             Image.fromarray(paper.image).save(image_file)
 
@@ -315,7 +320,8 @@ def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infi
 def make_dataset(sources: List[ScrapeURLs],
                  dataset_base_path: str,
                  open_review_username: str,
-                 open_review_password: str):
+                 open_review_password: str,
+                 num_threads: int):
     """Constructs a dataset using the OpenReview API
 
     The dataset will be a csv written to 'dataset_base_path/meta.csv' containing the fields
@@ -331,6 +337,7 @@ def make_dataset(sources: List[ScrapeURLs],
         dataset_base_path: An absolute path to the base of the dataset
         open_review_username: Username to the OpenReview website (e.g email used to sign up)
         open_review_password: Password to the OpenReview website
+        num_threads: The number of threads to use to download PDFs
 
     Raises:
         #TODO(jonasrsv, ...): In what way does this crash? :)
@@ -340,15 +347,16 @@ def make_dataset(sources: List[ScrapeURLs],
     """
     logger = logging.getLogger(LOGGER_NAME)
 
-    logger.info("Fetching papers")
-    papers = [paper for paper in OpenReviewScraper(username=open_review_username, password=open_review_password)(
-        sources=sources
-    ) if paper is not None]
+    logger.info("Starting Download & Conversion of papers")
+    # Lazy downloading papers, Downloading all at once won't fit in memory.. just one ICML + MIDL takes more than
+    # 30GB memory
+    papers = (paper for paper in OpenReviewScraper(username=open_review_username, password=open_review_password)(
+        sources=sources, num_threads=num_threads
+    ) if paper is not None)
 
-    logger.info("Extracting Images")
-    ipapers = [paper for paper in map(convert_Paper_to_ImagePaper, papers) if paper is not None]
+    # Lazy converting papers
+    ipapers = (paper for paper in map(convert_Paper_to_ImagePaper, papers) if paper is not None)
 
-    logger.info("Building dataset")
     ImagePapers_to_dataset(ipapers=ipapers, base_path=dataset_base_path, image_infix="images")
 
 
@@ -361,6 +369,7 @@ if __name__ == "__main__":
     parser.add_argument("--username", type=str, help="Username to OpenReview", required=True)
     parser.add_argument("--password", type=str, help="Password to OpenReview", required=True)
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
+    parser.add_argument("--num_threads", type=int, help="Number of threads to run download in", default=5)
 
     args = parser.parse_args()
 
@@ -368,6 +377,7 @@ if __name__ == "__main__":
 
     timestamp = time.time()
     make_dataset(sources=DEFAULT_SOURCES, dataset_base_path=args.base_path,
-                 open_review_username=args.username, open_review_password=args.password)
+                 open_review_username=args.username, open_review_password=args.password,
+                 num_threads=args.num_threads)
 
     logger.info(f"Construction of dataset took {time.time() - timestamp} seconds")
