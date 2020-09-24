@@ -59,6 +59,17 @@ DEFAULT_SOURCES = [
                decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
     ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
                decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
+
+
+    #Seem to work 
+    ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
+           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Official_Review"),
+    
+    #Seem to work
+    ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2018/Conference/-/Paper.*/Official_Review"),
+
+
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
@@ -97,7 +108,6 @@ class OpenReviewScraper:
                     or ("Poster" == note.content["decision"])  # In MIDL 2018 decisions are (Reject | Oral | Poster)
                     or ("Oral" == note.content["decision"])  # In MIDL 2018 decisions are (Reject | Oral | Poster)
                     )
-
         # If it is from ICLR and it is not a year with decision field its a bit more tedious --
         # Instead in their 'Official Reviews' there is a field called 'rating'
         # The first character of the rating is a number 0-9 if it is larger than 5 it appears to be accepted.
