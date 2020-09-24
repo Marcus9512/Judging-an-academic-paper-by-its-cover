@@ -5,8 +5,10 @@ Our "main" method.
 
 import logging
 import argparse
+
 from src.Data_processing.Paper_dataset import *
 from src.Tools.Tools import *
+from src.Network.Trainer import *
 
 
 LOGGER_NAME = "Network_Driver"
@@ -37,3 +39,7 @@ if __name__ == "__main__":
     logger.info(f"Dataset path: {args.base_path} ")
 
     sanity_check_paper_dataset(args.base_path)
+    trainer = Trainer(args.base_path)
+
+    #model = INSERT_MODEL_HERE
+    trainer.train(model=model, batch_size=1, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=10)
