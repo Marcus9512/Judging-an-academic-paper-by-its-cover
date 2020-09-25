@@ -60,16 +60,13 @@ DEFAULT_SOURCES = [
     ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
                decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
 
-
-    #Seem to work 
+    #Seems to work , gives 917 rejected, 502 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
-           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Official_Review"),
-    
-    #Seem to work
+           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
+
+    #Seems to work, gives 598 rejected, 337 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
-               decision_notes="ICLR.cc/2018/Conference/-/Paper.*/Official_Review"),
-
-
+           decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
@@ -111,11 +108,17 @@ class OpenReviewScraper:
         # If it is from ICLR and it is not a year with decision field its a bit more tedious --
         # Instead in their 'Official Reviews' there is a field called 'rating'
         # The first character of the rating is a number 0-9 if it is larger than 5 it appears to be accepted.
-        if 'rating' in note.content:
-            # TODO(..): Work on this heuristic
-            if int(note.content['rating'][0]) > 5:
-                return True
-            return False
+
+        #Works for ICLR 2019
+        if "recommendation" in note.content:
+            return "Accept" in note.content["recommendation"]
+
+        # Commented this out, not sure if this is needed anymore
+        # if 'rating' in note.content:
+        #     # TODO(..): Work on this heuristic
+        #     if int(note.content['rating'][0]) > 5:
+        #         return True
+        #     return False
 
         raise Exception("Cannot determine if a paper is accepted or not.")
 
