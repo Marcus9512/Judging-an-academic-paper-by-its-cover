@@ -5,6 +5,7 @@ Our "main" method.
 
 import logging
 import argparse
+import torch
 
 from src.Data_processing.Paper_dataset import *
 from src.Tools.Tools import *
@@ -41,5 +42,12 @@ if __name__ == "__main__":
     sanity_check_paper_dataset(args.base_path)
     trainer = Trainer(args.base_path)
 
-    #model = INSERT_MODEL_HERE
+    # model = INSERT_MODEL_HERE
+    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False)
+    # other resnet implementations:
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet34', pretrained=False)
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet50', pretrained=False)
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet101', pretrained=False)
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet152', pretrained=False)
+
     trainer.train(model=model, batch_size=1, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=10)
