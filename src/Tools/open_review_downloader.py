@@ -46,10 +46,6 @@ class Paper:
 
 
 DEFAULT_SOURCES = [
-    # TODO(...): Need to work a bit more with the 'accept' extraction on the ICLR thingies
-    # ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Official_Review"),
-
     # These ones works as intended
     ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
                decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
@@ -68,20 +64,18 @@ DEFAULT_SOURCES = [
     ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
            decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
 
-
     ##### WORKSHOPS
-    ScrapeURLs(submission_notes="ICLR.cc/2018/Workshop/-/Submission",
-           decision_notes="ICLR.cc/2018/Workshop/-/Acceptance_Decision"),
+    # ScrapeURLs(submission_notes="ICLR.cc/2018/Workshop/-/Submission",
+    #        decision_notes="ICLR.cc/2018/Workshop/-/Acceptance_Decision"),
 
-    ScrapeURLs(submission_notes="ICLR.cc/2019/Workshop/.*/-/Blind_Submission",
-            decision_notes="ICLR.cc/2019/Workshop/.*/-/Paper.*/Decision"),
+    # ScrapeURLs(submission_notes="ICLR.cc/2019/Workshop/.*/-/Blind_Submission",
+    #         decision_notes="ICLR.cc/2019/Workshop/.*/-/Paper.*/Decision"),
 
-    ScrapeURLs(submission_notes="ICLR.cc/2020/Workshop/.*/-/Blind_Submission",
-            decision_notes="ICLR.cc/2020/Workshop/.*/Paper.*/-/Decision"),
+    # ScrapeURLs(submission_notes="ICLR.cc/2020/Workshop/.*/-/Blind_Submission",
+    #         decision_notes="ICLR.cc/2020/Workshop/.*/Paper.*/-/Decision"),
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
-
 
 class OpenReviewScraper:
 
@@ -116,6 +110,7 @@ class OpenReviewScraper:
                     or ("Poster" == note.content["decision"])  # In MIDL 2018 decisions are (Reject | Oral | Poster)
                     or ("Oral" == note.content["decision"])  # In MIDL 2018 decisions are (Reject | Oral | Poster)
                     )
+        # This also works for ICLR 2018
         # If it is from ICLR and it is not a year with decision field its a bit more tedious --
         # Instead in their 'Official Reviews' there is a field called 'rating'
         # The first character of the rating is a number 0-9 if it is larger than 5 it appears to be accepted.
@@ -123,13 +118,6 @@ class OpenReviewScraper:
         #Works for ICLR 2019
         if "recommendation" in note.content:
             return "Accept" in note.content["recommendation"]
-
-        # Commented this out, not sure if this is needed anymore
-        # if 'rating' in note.content:
-        #     # TODO(..): Work on this heuristic
-        #     if int(note.content['rating'][0]) > 5:
-        #         return True
-        #     return False
 
         raise Exception("Cannot determine if a paper is accepted or not.")
 
