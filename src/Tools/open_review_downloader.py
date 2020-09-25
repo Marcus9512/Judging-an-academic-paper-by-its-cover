@@ -67,6 +67,17 @@ DEFAULT_SOURCES = [
     #Seems to work, gives 598 rejected, 337 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
            decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
+
+
+    ##### WORKSHOPS
+    ScrapeURLs(submission_notes="ICLR.cc/2018/Workshop/-/Submission",
+           decision_notes="ICLR.cc/2018/Workshop/-/Acceptance_Decision"),
+
+    ScrapeURLs(submission_notes="ICLR.cc/2019/Workshop/.*/-/Blind_Submission",
+            decision_notes="ICLR.cc/2019/Workshop/.*/-/Paper.*/Decision"),
+
+    ScrapeURLs(submission_notes="ICLR.cc/2020/Workshop/.*/-/Blind_Submission",
+            decision_notes="ICLR.cc/2020/Workshop/.*/Paper.*/-/Decision"),
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
