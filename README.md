@@ -20,7 +20,7 @@ Make sure that you are in the root folder for the project and run the command.
 ## Run the network
 In the main method in U_net.py you can select which tests that should be preformed. Set generate_augmented_data to true in order to generate data, note if you already have the data, set it to false.
 * Run `python setup.py install --user`
-* Run `python src/network/U_net.py` FIXA
+* Run `python src/network/Network_driver.py`
 
 ## Tensorboard
 * You need tensorflow installed `pip install tensorflow`
