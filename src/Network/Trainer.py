@@ -9,7 +9,7 @@ from src.Data_processing.Paper_dataset import *
 
 class Trainer:
 
-    def __init__(self, data_path, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
+    def __init__(self, dataset, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
@@ -17,7 +17,7 @@ class Trainer:
         :param data_to_test: percent of data to test
         :param data_to_eval: percent of data to eval
         '''
-        self.path = data_path
+        self.dataset = dataset
         self.data_to_train = data_to_train
         self.data_to_test = data_to_test
         self.data_to_eval = data_to_eval
@@ -73,7 +73,7 @@ class Trainer:
         #assign model to main device
         model.to(self.main_device)
 
-        batch_train = Paper_dataset(data_path=self.path)
+        batch_train = self.dataset
         dataset_length = batch_train.len
 
         # convert to int
