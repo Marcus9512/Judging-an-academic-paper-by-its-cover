@@ -293,7 +293,7 @@ def convert_Paper_to_ImagePaper(paper: Paper, num_pages: int, image_width: int, 
 
 
 def ImagePapers_to_dataset(ipapers: Iterator[ImagePaper], base_path: str, image_infix: str = "images") -> None:
-    """Takes a list of ImagePapers and constructs a csv with meta information and stores images as png files.
+    """Takes a list of ImagePapers and constructs a csv with meta information and stores images as npy files.
 
     This will lazily download and convert the papers to avoid having it all in memory at once.
 
