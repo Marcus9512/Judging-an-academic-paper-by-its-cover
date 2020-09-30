@@ -2,17 +2,19 @@
 
 # example usage
 # python3 src/Tools/open_review_downloader.py \
-#   --username="USEERNAME_HERE"\
+#   --username="USERNAME_HERE"\
 #   --password="PASSWORD_HERE"\
-#   --base_path="PATH_TO_OUTPUT_DIR_HERE"\
-#   --num_threads=10\
+#   --base_path=PATH_TO_DATA_DIRECTORY_HERE\
+#   --num_pages=8\
+#   --image_width=256\
+#   --image_height=256\
+#   --num_threads=20
 
 import openreview
 import logging
 from urllib3.exceptions import MaxRetryError
 from requests.exceptions import ConnectionError
-import sys
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 import time
 import PyPDF2
@@ -56,13 +58,13 @@ DEFAULT_SOURCES = [
     ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
                decision_notes="MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
 
-    #Seems to work , gives 917 rejected, 502 accepted
+    # Seems to work , gives 917 rejected, 502 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
-           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
+               decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
 
-    #Seems to work, gives 598 rejected, 337 accepted
+    # #Seems to work, gives 598 rejected, 337 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
-           decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
+               decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
 
     ##### WORKSHOPS
     # ScrapeURLs(submission_notes="ICLR.cc/2018/Workshop/-/Submission",
@@ -76,6 +78,7 @@ DEFAULT_SOURCES = [
 ]
 
 LOGGER_NAME = "OpenReviewScraper"
+
 
 class OpenReviewScraper:
 
@@ -115,7 +118,7 @@ class OpenReviewScraper:
         # Instead in their 'Official Reviews' there is a field called 'rating'
         # The first character of the rating is a number 0-9 if it is larger than 5 it appears to be accepted.
 
-        #Works for ICLR 2019
+        # Works for ICLR 2019
         if "recommendation" in note.content:
             return "Accept" in note.content["recommendation"]
 
@@ -207,19 +210,23 @@ class ImagePaper:
     authors: List[str]
     title: str
     abstract: str
-    image: np.ndarray
+    images: np.ndarray
     accepted: bool
 
 
-def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
+def convert_Paper_to_ImagePaper(paper: Paper, num_pages: int, image_width: int, image_height: int) -> Optional[
+    ImagePaper]:
     """Convert the paper into a ImagePaper to be used by our vision model.
 
     This will extract the first page of the pdf and convert it into an image, all in memory.
 
     Args:
         paper: The paper dataclass containing the PDF information
+        num_pages: Number of pages to include in paper images
+        image_width: Width of the resulting images
+        image_height: Height of the resulting images
     Returns:
-        Optional[ImagePaper] - a dataclass containing a numpy array of width x height x channels --  or None
+        Optional[ImagePaper] - a dataclass containing a numpy array of width x height x images --  or None
     """
     logger = logging.getLogger(LOGGER_NAME)
     try:
@@ -233,8 +240,8 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
             # TODO(...) A better heuristic, 50 is completely arbitrary at the moment
             return len(page.extractText()) > 50
 
-        for page_index in range(pdf.numPages):
-            front_page = pdf.getPage(page_index)
+        for front_page_index in range(pdf.numPages):
+            front_page = pdf.getPage(front_page_index)
 
             if _is_valid_frontpage(front_page):
                 break
@@ -242,22 +249,38 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
             raise ValueError("No page is a valid front-page")
 
         # Now get raw pdf data
-        front_page_bytes = io.BytesIO()
-
+        pages_bytes = io.BytesIO()
         pdf_writer = PyPDF2.PdfFileWriter()
-        pdf_writer.addPage(front_page)
-        pdf_writer.write(front_page_bytes)
 
-        # pdf2image will create on image per page, but since we only have one we get the first one
-        pil_image = pdf2image.convert_from_bytes(front_page_bytes.getvalue())[0]
+        # Add num_pages to pages bytes
+        for page_index in range(num_pages):
+            try:
+                page = pdf.getPage(page_index + front_page_index)
+                pdf_writer.addPage(page)
+            except IndexError:
+                break
 
-        image_data = np.array(pil_image)
+        pdf_writer.write(pages_bytes)
+
+        # pdf2image will create on image per page, here we resize and grayscale them
+        np_images = \
+            [
+                np.array(
+                    ImageOps.grayscale(
+                        image.resize((image_width, image_height)))
+                ) for image in pdf2image.convert_from_bytes(pages_bytes.getvalue())]
+
+        # If np_images contains less than num_images we pad with black images
+        padding = np.zeros((image_width, image_height))
+        np_images = np_images + [padding] * (num_pages - len(np_images))
+        np_images = [image.reshape((image_width, image_height, 1)) for image in np_images]
+        np_images = np.concatenate(np_images, axis=2)
 
         return ImagePaper(id=paper.id,
                           authors=paper.authors,
                           title=paper.title,
                           abstract=paper.abstract,
-                          image=image_data,
+                          images=np_images,
                           accepted=paper.accepted)
     except PdfReadError as e:
         logger.warning(f"PdfReadError: Unable to read {paper.title} reason: {e} -- discarding it")
@@ -266,10 +289,10 @@ def convert_Paper_to_ImagePaper(paper: Paper) -> Optional[ImagePaper]:
     except TypeError as e:
         logger.warning(f"TypeError: Paper {paper.title} was not converted to ImagePaper, Reason: {e}")
     except Exception as e:
-        logger.warning(f"Unknown Exception: {e} -- Dropping Paper {paper.title}")
+        logger.warning(f"(Papers To Image Papers) Unknown Exception: {e} -- Dropping Paper {paper.title}")
 
 
-def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infix: str = "images") -> None:
+def ImagePapers_to_dataset(ipapers: Iterator[ImagePaper], base_path: str, image_infix: str = "images") -> None:
     """Takes a list of ImagePapers and constructs a csv with meta information and stores images as png files.
 
     This will lazily download and convert the papers to avoid having it all in memory at once.
@@ -317,14 +340,13 @@ def ImagePapers_to_dataset(ipapers: List[ImagePaper], base_path: str, image_infi
         meta_features["abstract"].append(paper.abstract)
         meta_features["accepted"].append(paper.accepted)
 
-        relative_image_path = f"{image_infix}/{paper.id}.png"
+        relative_image_path = f"{image_infix}/{paper.id}"
         meta_features["image_path"].append(relative_image_path)
 
         absolute_image_path = base_path / relative_image_path
         # Write image to disk
 
-        with open(absolute_image_path, "wb") as image_file:
-            Image.fromarray(paper.image).save(image_file)
+        np.save(file=absolute_image_path, arr=paper.images)
 
     pd.DataFrame(meta_features).to_csv(base_path / "meta.csv", index=False)
 
@@ -333,6 +355,9 @@ def make_dataset(sources: List[ScrapeURLs],
                  dataset_base_path: str,
                  open_review_username: str,
                  open_review_password: str,
+                 image_width: int,
+                 image_height: int,
+                 num_pages: int,
                  num_threads: int):
     """Constructs a dataset using the OpenReview API
 
@@ -349,6 +374,9 @@ def make_dataset(sources: List[ScrapeURLs],
         dataset_base_path: An absolute path to the base of the dataset
         open_review_username: Username to the OpenReview website (e.g email used to sign up)
         open_review_password: Password to the OpenReview website
+        image_width: Width of pages stored in dataset
+        image_height: Height of pages stored in dataset
+        num_pages: Number of pages stored per paper
         num_threads: The number of threads to use to download PDFs
 
     Raises:
@@ -367,7 +395,12 @@ def make_dataset(sources: List[ScrapeURLs],
     ) if paper is not None)
 
     # Lazy converting papers
-    ipapers = (paper for paper in map(convert_Paper_to_ImagePaper, papers) if paper is not None)
+    ipapers = (paper for paper in map(
+        lambda x: convert_Paper_to_ImagePaper(paper=x,
+                                              num_pages=num_pages,
+                                              image_width=image_width,
+                                              image_height=image_height),
+        papers) if paper is not None)
 
     ImagePapers_to_dataset(ipapers=ipapers, base_path=dataset_base_path, image_infix="images")
 
@@ -381,6 +414,9 @@ if __name__ == "__main__":
     parser.add_argument("--username", type=str, help="Username to OpenReview", required=True)
     parser.add_argument("--password", type=str, help="Password to OpenReview", required=True)
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
+    parser.add_argument("--image_width", type=int, help="width of stored images", required=True)
+    parser.add_argument("--image_height", type=int, help="height of stored images", required=True)
+    parser.add_argument("--num_pages", type=int, help="number of pages stored per paper", required=True)
     parser.add_argument("--num_threads", type=int, help="Number of threads to run download in", default=5)
 
     args = parser.parse_args()
@@ -390,6 +426,7 @@ if __name__ == "__main__":
     timestamp = time.time()
     make_dataset(sources=DEFAULT_SOURCES, dataset_base_path=args.base_path,
                  open_review_username=args.username, open_review_password=args.password,
-                 num_threads=args.num_threads)
+                 image_width=args.image_width, image_height=args.image_height,
+                 num_pages=args.num_pages, num_threads=args.num_threads)
 
     logger.info(f"Construction of dataset took {time.time() - timestamp} seconds")
