@@ -42,8 +42,20 @@ if __name__ == "__main__":
     #sanity_check_paper_dataset(args.base_path)
     trainer = Trainer(Paper_dataset(args.base_path, resolution=".400x400"))
 
-    # model = INSERT_MODEL_HERE
-    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False)
+    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False, num_classes=1)
+
+    # Having modified the last layer, see:
+    # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
+    # &&
+    # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L167
+
+    # potential fix if above does not work:
+
+    """
+    model.fc = nn.Linear(512 * 1000, 1)             # where 512 * 1000 = input nodes, 1 = num_classes
+    """
+
+
     # other resnet implementations:
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet34', pretrained=False)
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet50', pretrained=False)
