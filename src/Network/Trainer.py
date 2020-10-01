@@ -100,7 +100,7 @@ class Trainer:
         # select optimizer type, current is SGD
         optimizer = opt.SGD(model.parameters(), lr=learn_rate, weight_decay=learn_decay, momentum=learn_momentum)
 
-        evaluation = nn.CrossEntropyLoss()
+        evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
         summary = tb.SummaryWriter()
 
@@ -117,16 +117,16 @@ class Trainer:
                 train = i["image"]
                 label = i["label"]
 
-                #print(train.shape)
-                #print("Train ",train.type())
                 # reset gradients
                 optimizer.zero_grad()
                 train = train.to(device=self.main_device, dtype=torch.float32)
-                #print("Train2 ", train.type())
                 out = model(train)
 
-                label = label.to(device=self.main_device, dtype=torch.long)
+                label = label.to(device=self.main_device, dtype=torch.float32)
 
+                print("out: ",out)
+                print("out1 : ", out[0])
+                print("label: ", label)
                 #print("out ", out.type())
                 #print(out)
                 #print("label", label.type())
@@ -152,10 +152,11 @@ class Trainer:
                 with torch.no_grad():
                     out = model(val)
 
-                    label_val = label_val.to(device=self.main_device, dtype=torch.long)
+                    label_val = label_val.to(device=self.main_device, dtype=torch.float32)
 
                     loss = evaluation(out, label_val)
                     loss_val += loss.item()
+
                     pos += 1
 
             loss_val /= len_v
