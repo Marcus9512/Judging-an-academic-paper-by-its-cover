@@ -117,13 +117,20 @@ class Trainer:
                 train = i["image"]
                 label = i["label"]
 
+                #print(train.shape)
+                #print("Train ",train.type())
                 # reset gradients
                 optimizer.zero_grad()
                 train = train.to(device=self.main_device, dtype=torch.float32)
+                #print("Train2 ", train.type())
                 out = model(train)
 
-                label = label.to(device=self.main_device, dtype=torch.float32)
+                label = label.to(device=self.main_device, dtype=torch.long)
 
+                #print("out ", out.type())
+                #print(out)
+                #print("label", label.type())
+                #print(label)
                 loss = evaluation(out, label)
                 loss.backward()
                 optimizer.step()
@@ -145,7 +152,7 @@ class Trainer:
                 with torch.no_grad():
                     out = model(val)
 
-                    label_val = label_val.to(device=self.main_device, dtype=torch.float32)
+                    label_val = label_val.to(device=self.main_device, dtype=torch.long)
 
                     loss = evaluation(out, label_val)
                     loss_val += loss.item()

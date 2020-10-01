@@ -49,9 +49,10 @@ class Paper_dataset(Dataset):
 
         ret["image"] = image
         if data["accepted"]:
-            ret["label"] = 1
+            ret["label"] = np.asarray(1.0)
         else:
-            ret["label"] = 0
+            ret["label"] = np.asarray(0.0)
+
         ret["abstract"] = data["abstract"]
         ret["title"] = data["title"]
         ret["authors"] = data["authors"]
