@@ -10,10 +10,13 @@ class Paper_dataset(Dataset):
         Creates a "Paper_dataset" from the data given in meta.
         At the moment the file
     '''
-    def __init__(self, data_path, print_csv=False):
+    def __init__(self, data_path, print_csv=False, resolution=None):
         #Set global path and path to meta file
         self.data_path = data_path
         self.path_meta = os.path.join(data_path,"meta.csv")
+
+        self.res = resolution
+
         if not os.path.exists(self.path_meta):
             raise Exception("Could not find meta file")
 
@@ -35,16 +38,24 @@ class Paper_dataset(Dataset):
         data = self.csv_data.loc[item,:]
 
         ret = {}
-        image = Image.open(self.data_path+"/"+data["image_path"])
+        if self.res == None:
+            image = Image.open(self.data_path+"/"+data["image_path"])
+        else:
+            image = Image.open(self.data_path + "/" + data["image_path"] + self.res)
         image = np.asarray(image) / 255
 
         #This line might be needed by pytorch to switch place for the channel data
-        #image = image.transpose((2, 0, 1))
+        image = image.transpose((2, 0, 1))
 
         ret["image"] = image
-        ret["label"] = data["accepted"]
+        if data["accepted"]:
+            ret["label"] = np.asarray([1.0])
+        else:
+            ret["label"] = np.asarray([0.0])
+
         ret["abstract"] = data["abstract"]
         ret["title"] = data["title"]
         ret["authors"] = data["authors"]
+
 
         return ret
