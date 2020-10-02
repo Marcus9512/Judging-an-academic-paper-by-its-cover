@@ -40,7 +40,7 @@ if __name__ == "__main__":
     logger.info(f"Dataset path: {args.base_path} ")
 
     #sanity_check_paper_dataset(args.base_path)
-    trainer = Trainer(Paper_dataset(args.base_path, resolution=".400x400"))
+    trainer = Trainer(Paper_dataset(args.base_path, resolution=".400x400"), logger=logger)
 
     model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False, num_classes=1)
 
