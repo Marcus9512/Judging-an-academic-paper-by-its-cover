@@ -44,6 +44,9 @@ if __name__ == "__main__":
 
     model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False, num_classes=1)
 
+    # modifying the input layer to accept 8 channels input:
+    model.conv1 = nn.Conv2d(8, 64, kernel_size=7, stride=2, padding=3, bias=False)
+
     # Having modified the last layer, see:
     # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
     # &&
