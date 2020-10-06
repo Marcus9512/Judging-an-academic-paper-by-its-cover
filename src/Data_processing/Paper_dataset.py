@@ -44,7 +44,7 @@ class Paper_dataset(Dataset):
         if self.res == None:
             image = np.load(self.data_path+"/"+data["image_path"]+".npy")
         else:
-            image = np.load(self.data_path + "/" + data["image_path"] + self.res)
+            image = np.load(self.data_path + "/" + data["image_path"] + self.res+".npy")
 
 
         image = image / 255
