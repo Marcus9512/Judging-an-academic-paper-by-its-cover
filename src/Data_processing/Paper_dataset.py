@@ -11,6 +11,9 @@ class Paper_dataset(Dataset):
         At the moment the file
     '''
     def __init__(self, data_path, print_csv=False, resolution=None):
+
+        resolution = None #Resolution is currently disabled
+
         #Set global path and path to meta file
         self.data_path = data_path
         self.path_meta = os.path.join(data_path,"meta.csv")
@@ -39,10 +42,13 @@ class Paper_dataset(Dataset):
 
         ret = {}
         if self.res == None:
-            image = Image.open(self.data_path+"/"+data["image_path"])
+            image = np.load(self.data_path+"/"+data["image_path"]+".npy")
         else:
-            image = Image.open(self.data_path + "/" + data["image_path"] + self.res)
-        image = np.asarray(image) / 255
+            image = np.load(self.data_path + "/" + data["image_path"] + self.res)
+
+
+        image = image / 255
+
 
         #This line might be needed by pytorch to switch place for the channel data
         image = image.transpose((2, 0, 1))
@@ -56,6 +62,5 @@ class Paper_dataset(Dataset):
         ret["abstract"] = data["abstract"]
         ret["title"] = data["title"]
         ret["authors"] = data["authors"]
-
 
         return ret
