@@ -64,7 +64,7 @@ DEFAULT_SOURCES = [
                decision_notes=
                "MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
 
-    # # Seems to work , gives 917 rejected, 502 accepted
+    # Seems to work , gives 917 rejected, 502 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
                decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
 
