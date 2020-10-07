@@ -1,14 +1,5 @@
-# example usage
-# python3 src/Tools/open_review_downloader.py \
-#   --username="USERNAME_HERE"\
-#   --password="PASSWORD_HERE"\
-#   --base_path=PATH_TO_DATA_DIRECTORY_HERE\
-#   --num_pages=8\
-#   --image_width=256\
-#   --image_height=256\
-#   --num_threads=20
-
 import openreview
+import sys
 import logging
 import re
 from urllib3.exceptions import MaxRetryError
@@ -22,12 +13,22 @@ from PyPDF2.utils import PdfReadError
 import pdf2image
 import io
 from dataclasses import dataclass
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Tuple, TypeVar
 import pathlib
 import argparse
 import pandas as pd
 from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
+from enum import Enum
+
+
+class Mode(Enum):
+    Download = "download"
+    GSChannels = "gschannels"
+    RGBChannels = "rgbchannels"
+
+    def __str__(self):
+        return self.value
 
 
 @dataclass
@@ -67,7 +68,7 @@ DEFAULT_SOURCES = [
     ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
                decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
 
-    # #Seems to work, gives 598 rejected, 337 accepted
+    # Seems to work, gives 598 rejected, 337 accepted
     ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
                decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
 
@@ -245,7 +246,6 @@ class OpenReviewScraper:
 
             with ThreadPool(processes=num_threads) as pool:
                 with tqdm(total=number_submission) as progress_bar:
-                    i = 0
                     for note in pool.imap_unordered(downloader_fn,
                                                     submission_notes):
                         # update progress bar
@@ -259,36 +259,136 @@ class OpenReviewScraper:
                 f"Accepted: {num_accepted} -- Rejected: {num_rejected}")
 
 
-@dataclass
-class ImagePaper:
-    id: str
-    authors: List[str]
-    title: str
-    abstract: str
-    images: np.ndarray
-    accepted: bool
-    conference: str
-    year: int
+def download_pdfs(sources: List[ScrapeURLs],
+                  dataset_base_path: str,
+                  open_review_username: str,
+                  open_review_password: str,
+                  num_threads: int):
+    """Constructs a dataset using the OpenReview API
+
+    The dataset will be a csv written to 'dataset_base_path/meta.csv' containing the fields
+        id: The paper identifier on OpenReview
+        authors: The authors of the paper separated with "-"
+        title: The title of the paper
+        abstract: The abstract of the paper
+        accepted: If it was accepted or not, True indicates accepted
+        image_path: A path relative to 'dataset_base_path' to an image of the paper
+
+    Args:
+        sources: The conferences to scrape -- see "DEFAULT_SOURCES" at the top of this file for an example
+        dataset_base_path: An absolute path to the base of the dataset
+        open_review_username: Username to the OpenReview website (e.g email used to sign up)
+        open_review_password: Password to the OpenReview website
+        num_threads: The number of threads to use to download PDFs
+
+    Raises:
+        #TODO(jonasrsv, ...): In what way does this crash? :)
+
+    Returns:
+        None, this function constructs the dataset at 'dataset_base_path'
+    """
+    logger = logging.getLogger(LOGGER_NAME)
+
+    logger.info("Starting Download & Conversion of papers")
+    # Lazy downloading papers, Downloading all at once won't fit in memory.. just one ICML + MIDL takes more than
+    # 30GB memory
+    papers = (paper
+              for paper in OpenReviewScraper(username=open_review_username,
+                                             password=open_review_password)
+              (sources=sources, num_threads=num_threads) if paper is not None)
+
+    # Create dataset path if it does not exist
+    base_path = pathlib.Path(dataset_base_path)
+    if not base_path.is_dir():
+        logger.warning(f"{base_path} is not a valid directory")
+        logger.warning(f"Creating {base_path}")
+
+        # Assume it works.. if someone can be bothered to add fail-safes, do so
+        os.mkdir(base_path)
+
+    papers_path = pathlib.Path(f"{dataset_base_path}/papers")
+
+    # Create pdf folder if it does not exist
+    if not papers_path.is_dir():
+        logger.warning(f"{papers_path} is not a valid directory")
+        logger.warning(f"Creating {papers_path}")
+
+        # Assume it works.. if someone can be bothered to add fail-safes, do so
+        os.mkdir(papers_path)
+
+    meta_features = {
+        "id": [],
+        "authors": [],
+        "title": [],
+        "abstract": [],
+        "accepted": [],
+        "conference": [],
+        "year": [],
+        "paper_path": [],
+    }
+
+    logger.info(f"Storing papers at -- {base_path}")
+    for paper in papers:
+        # Add all meta features
+        meta_features["id"].append(paper.id)
+        meta_features["authors"].append("-".join(paper.authors))
+        meta_features["title"].append(paper.title)
+        meta_features["abstract"].append(paper.abstract)
+        meta_features["accepted"].append(paper.accepted)
+        meta_features["conference"].append(paper.conference)
+        meta_features["year"].append(paper.year)
+
+        relative_paper_path = f"papers/{paper.id}"
+        meta_features["paper_path"].append(relative_paper_path)
+
+        absolute_paper_path = base_path / relative_paper_path
+
+        # Write pdf to disk
+        with open(f"{absolute_paper_path}.pdf", "wb") as pdf_file:
+            pdf_file.write(paper.pdf)
+
+    pd.DataFrame(meta_features).to_csv(base_path / "meta.csv", index=False)
 
 
-def convert_Paper_to_ImagePaper(paper: Paper, num_pages: int, image_width: int, image_height: int) -> Optional[
-    ImagePaper]:
-    """Convert the paper into a ImagePaper to be used by our vision model.
+def pdf_loader(base_path: str) -> Iterator[Tuple[str, bytes]]:
+    logger = logging.getLogger(LOGGER_NAME)
+
+    base_path = pathlib.Path(base_path)
+    if not base_path.is_dir():
+        logger.fatal(f"{base_path} is not a directory")
+        sys.exit(1)
+
+    paper_path = base_path / "papers"
+
+    if not paper_path.is_dir():
+        logger.fatal(f"{paper_path} is not a directory")
+        sys.exit(1)
+
+    pdfs = list(paper_path.glob("*.pdf"))
+
+    with tqdm(total=len(pdfs)) as progress_bar:
+        for paper in pdfs:
+            with open(str(paper), "rb") as pdf_file:
+                yield paper.stem, pdf_file.read()
+                progress_bar.update()
+
+
+def pdf_to_images(name: str, pdf: bytes, num_pages: int):
+    """Convert the paper into a a list of images to be used by our vision model.
 
     This will extract the first page of the pdf and convert it into an image, all in memory.
 
     Args:
-        paper: The paper dataclass containing the PDF information
+        name: Name of the pdf file
+        pdf: Bytes of pdf file
         num_pages: Number of pages to include in paper images
-        image_width: Width of the resulting images
-        image_height: Height of the resulting images
     Returns:
-        Optional[ImagePaper] - a dataclass containing a numpy array of width x height x images --  or None
+        Optional[List[Image]]
     """
     logger = logging.getLogger(LOGGER_NAME)
     try:
         # A fake input file
-        pdf_stream = io.BytesIO(paper.pdf)
+        pdf_stream = io.BytesIO(pdf)
 
         pdf = PyPDF2.PdfFileReader(pdf_stream)
 
@@ -319,164 +419,77 @@ def convert_Paper_to_ImagePaper(paper: Paper, num_pages: int, image_width: int, 
 
         pdf_writer.write(pages_bytes)
 
-        # pdf2image will create on image per page, here we resize and grayscale them
-        np_images = \
-            [
-                np.array(
-                    ImageOps.grayscale(
-                        image.resize((image_width, image_height)))
-                ) for image in pdf2image.convert_from_bytes(pages_bytes.getvalue())]
+        # pdf2image will create on image per page
+        return [image for image in pdf2image.convert_from_bytes(pages_bytes.getvalue())]
 
-        # If np_images contains less than num_images we pad with black images
-        padding = np.zeros((image_width, image_height))
-        np_images = np_images + [padding] * (num_pages - len(np_images))
-        np_images = [image.reshape((image_width, image_height, 1)) for image in np_images]
-        np_images = np.concatenate(np_images, axis=2)
-
-        return ImagePaper(id=paper.id,
-                          authors=paper.authors,
-                          title=paper.title,
-                          abstract=paper.abstract,
-                          images=np_images,
-                          accepted=paper.accepted,
-                          conference=paper.conference,
-                          year=paper.year)
     except PdfReadError as e:
         logger.warning(
-            f"PdfReadError: Unable to read {paper.title} reason: {e} -- discarding it"
+            f"PdfReadError: Unable to read paper {name} reason: {e} -- discarding it"
         )
     except ValueError as e:
         logger.warning(
-            f"ValueError: Paper {paper.title} was not converted to ImagePaper, Reason: {e}"
+            f"ValueError: Paper {name} was not converted to images, Reason: {e}"
         )
     except TypeError as e:
         logger.warning(
-            f"TypeError: Paper {paper.title} was not converted to ImagePaper, Reason: {e}"
+            f"TypeError:  Paper {name} was not converted to images, Reason: {e}"
         )
     except Exception as e:
         exception_type = type(e).__name__
         logger.warning(
-            f"Unknown exception {exception_type}: {e} -- Dropping Paper {paper.title}"
+            f"Unknown exception {exception_type}: {e} -- Dropping Paper {name}"
         )
 
 
-def ImagePapers_to_dataset(ipapers: Iterator[ImagePaper], base_path: str, image_infix: str = "images") -> None:
-    """Takes a list of ImagePapers and constructs a csv with meta information and stores images as npy files.
-
-    This will lazily download and convert the papers to avoid having it all in memory at once.
-
+def convert_pdf_dataset(dataset_base_path: str,
+                        num_pages: int,
+                        width: int,
+                        height: int,
+                        mode: Mode):
+    """Convert the pdf dataset into a different representation, e.g grayscaled images
     Args:
-        ipapers: List of ImagePapers
-        base_path: Path to construct dataset -- meta data will be saved in base_path/meta.csv and images
-                   in base_path/images/...
-        image_infix: Name of subpath in which image files is stored
-    """
-    logger = logging.getLogger(LOGGER_NAME)
-
-    base_path = pathlib.Path(base_path)
-    if not base_path.is_dir():
-        logger.warning(f"{base_path} is not a valid directory")
-        logger.warning(f"Creating {base_path}")
-
-        # Assume it works.. if someone can be bothered to add fail-safes, do so
-        os.mkdir(base_path)
-
-    image_path = base_path / image_infix
-    if not image_path.is_dir():
-        logger.warning(f"{image_path} is not a valid directory")
-        logger.warning(f"Creating {image_path}")
-
-        # Assume it works.. if someone can be bothered to add fail-safes, do so
-        os.mkdir(image_path)
-
-    meta_features = {
-        "id": [],
-        "authors": [],
-        "title": [],
-        "abstract": [],
-        "accepted": [],
-        "conference": [],
-        "year": [],
-        "image_path": [],
-    }
-
-    logger.info(f"Storing papers at -- {base_path}")
-    for paper in ipapers:
-        # Add all meta features
-        meta_features["id"].append(paper.id)
-        meta_features["authors"].append("-".join(paper.authors))
-        meta_features["title"].append(paper.title)
-        meta_features["abstract"].append(paper.abstract)
-        meta_features["accepted"].append(paper.accepted)
-        meta_features["conference"].append(paper.conference)
-        meta_features["year"].append(paper.year)
-
-        relative_image_path = f"{image_infix}/{paper.id}"
-        meta_features["image_path"].append(relative_image_path)
-
-        absolute_image_path = base_path / relative_image_path
-        # Write image to disk
-
-        np.save(file=absolute_image_path, arr=paper.images)
-
-    pd.DataFrame(meta_features).to_csv(base_path / "meta.csv", index=False)
-
-
-def make_dataset(sources: List[ScrapeURLs],
-                 dataset_base_path: str,
-                 open_review_username: str,
-                 open_review_password: str,
-                 image_width: int,
-                 image_height: int,
-                 num_pages: int,
-                 num_threads: int):
-    """Constructs a dataset using the OpenReview API
-
-    The dataset will be a csv written to 'dataset_base_path/meta.csv' containing the fields
-        id: The paper identifier on OpenReview
-        authors: The authors of the paper separated with "-"
-        title: The title of the paper
-        abstract: The abstract of the paper
-        accepted: If it was accepted or not, True indicates accepted
-        image_path: A path relative to 'dataset_base_path' to an image of the paper
-
-    Args:
-        sources: The conferences to scrape -- see "DEFAULT_SOURCES" at the top of this file for an example
-        dataset_base_path: An absolute path to the base of the dataset
-        open_review_username: Username to the OpenReview website (e.g email used to sign up)
-        open_review_password: Password to the OpenReview website
-        image_width: Width of pages stored in dataset
-        image_height: Height of pages stored in dataset
-        num_pages: Number of pages stored per paper
-        num_threads: The number of threads to use to download PDFs
-
-    Raises:
-        #TODO(jonasrsv, ...): In what way does this crash? :)
-
+        dataset_base_path: path to the base of a pdf dataset
+        num_pages: Number of pages to include in paper images
+        width: Width of the resulting images
+        height: Height of the resulting images
+        mode: The mode of image conversion, e.g GSChannels, RGBChannels..
     Returns:
-        None, this function constructs the dataset at 'dataset_base_path'
+        Nothing, this writes to the dataset_base_path/papers directory
     """
-    logger = logging.getLogger(LOGGER_NAME)
+    for name, pdf in pdf_loader(dataset_base_path):
+        images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
 
-    logger.info("Starting Download & Conversion of papers")
-    # Lazy downloading papers, Downloading all at once won't fit in memory.. just one ICML + MIDL takes more than
-    # 30GB memory
-    papers = (paper
-              for paper in OpenReviewScraper(username=open_review_username,
-                                             password=open_review_password)
-              (sources=sources, num_threads=num_threads) if paper is not None)
+        # If we were unable to extract images
+        if images is None:
+            continue
 
-    # Lazy converting papers
-    ipapers = (paper for paper in map(
-        lambda x: convert_Paper_to_ImagePaper(paper=x,
-                                              num_pages=num_pages,
-                                              image_width=image_width,
-                                              image_height=image_height),
-        papers) if paper is not None)
+        # The binary blob is what will be written to the file
+        # dataset_base_path/papers/name-mode-width-height.npy
+        binary_blob = None
 
-    ImagePapers_to_dataset(ipapers=ipapers,
-                           base_path=dataset_base_path,
-                           image_infix="images")
+        if mode == Mode.GSChannels:
+            binary_blob = [image.resize((width, height)) for image in images]
+            binary_blob = [ImageOps.grayscale(image) for image in binary_blob]
+            binary_blob = [np.array(image) for image in binary_blob]
+
+            padding = np.zeros((width, height))
+
+            # Pad blob so that all have num_pages images
+            binary_blob = binary_blob + ([padding] * (num_pages - len(binary_blob)))
+            binary_blob = np.array(binary_blob)
+
+        if mode == Mode.RGBChannels:
+            binary_blob = [image.resize((width, height)) for image in images]
+            binary_blob = [np.array(image) for image in binary_blob]
+
+            padding = np.zeros((width, height, 3))
+
+            # Pad blob so that all have num_pages images
+            binary_blob = binary_blob + ([padding] * (num_pages - len(binary_blob)))
+            binary_blob = np.array(binary_blob)
+
+        binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
+        np.save(binary_blob_path, binary_blob)
 
 
 if __name__ == "__main__":
@@ -485,23 +498,48 @@ if __name__ == "__main__":
     logger = logging.getLogger(LOGGER_NAME)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--username", type=str, help="Username to OpenReview", required=True)
-    parser.add_argument("--password", type=str, help="Password to OpenReview", required=True)
-    parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
-    parser.add_argument("--image_width", type=int, help="width of stored images", required=True)
-    parser.add_argument("--image_height", type=int, help="height of stored images", required=True)
-    parser.add_argument("--num_pages", type=int, help="number of pages stored per paper", required=True)
-    parser.add_argument("--num_threads", type=int, help="Number of threads to run download in", default=5)
+    parser.add_argument("--username", type=str, help="Username to OpenReview")
+    parser.add_argument("--password", type=str, help="Password to OpenReview")
+    parser.add_argument("--base_path", type=str, help="Base path of dataset")
+    parser.add_argument("--image_width", type=int, help="width of stored images")
+    parser.add_argument("--image_height", type=int, help="height of stored images")
+    parser.add_argument("--num_pages", type=int, help="number of pages stored per paper")
+    parser.add_argument("--num_threads", type=int, help="Number of threads to run download in")
+    parser.add_argument("--mode", type=Mode, choices=list(Mode))
 
     args = parser.parse_args()
 
-    logger.info(f"Making dataset at {args.base_path} with default sources")
+
+    def ensure_non_null(name: str, arg):
+        if arg is None:
+            logger.fatal(f"Missing argument {name}, exiting...")
+            sys.exit(1)
+
+        return arg
+
 
     timestamp = time.time()
-    make_dataset(sources=DEFAULT_SOURCES, dataset_base_path=args.base_path,
-                 open_review_username=args.username, open_review_password=args.password,
-                 image_width=args.image_width, image_height=args.image_height,
-                 num_pages=args.num_pages, num_threads=args.num_threads)
 
+    if args.mode == Mode.Download:
+        logger.info(f"Making dataset at {args.base_path} with default sources")
+        download_pdfs(sources=DEFAULT_SOURCES,
+                      dataset_base_path=ensure_non_null("base_path", args.base_path),
+                      open_review_username=ensure_non_null("username", args.username),
+                      open_review_password=ensure_non_null("password", args.password),
+                      num_threads=ensure_non_null("num_threads", args.num_threads))
+
+    if args.mode == Mode.GSChannels:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", args.num_pages),
+                            width=ensure_non_null("image_width", args.image_width),
+                            height=ensure_non_null("image_height", args.image_height),
+                            mode=Mode.GSChannels)
+
+    if args.mode == Mode.RGBChannels:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", args.num_pages),
+                            width=ensure_non_null("image_width", args.image_width),
+                            height=ensure_non_null("image_height", args.image_height),
+                            mode=Mode.RGBChannels)
     logger.info(
-        f"Construction of dataset took {time.time() - timestamp} seconds")
+        f"Execution time was {time.time() - timestamp} seconds")
