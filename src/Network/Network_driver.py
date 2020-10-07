@@ -29,6 +29,11 @@ def sanity_check_paper_dataset(dataset_path):
     info = dataset.__getitem__(2)
     print_image_from_array(info["image"] * 255)
 
+def get_resnet_model():
+    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False, num_classes=1)
+    # modifying the input layer to accept 8 channels input:
+    model.conv1 = nn.Conv2d(8, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    return model
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -40,9 +45,9 @@ if __name__ == "__main__":
     logger.info(f"Dataset path: {args.base_path} ")
 
     #sanity_check_paper_dataset(args.base_path)
-    trainer = Trainer(Paper_dataset(args.base_path, resolution=".400x400"))
+    trainer = Trainer(Paper_dataset(args.base_path, resolution=".400x400"), logger=logger)
 
-    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False, num_classes=1)
+    model = get_resnet_model()
 
     # Having modified the last layer, see:
     # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
@@ -54,8 +59,6 @@ if __name__ == "__main__":
     """
     model.fc = nn.Linear(512 * 1000, 1)             # where 512 * 1000 = input nodes, 1 = num_classes
     """
-
-
     # other resnet implementations:
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet34', pretrained=False)
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet50', pretrained=False)

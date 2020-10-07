@@ -9,7 +9,7 @@ from src.Data_processing.Paper_dataset import *
 
 class Trainer:
 
-    def __init__(self, dataset, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
+    def __init__(self, dataset, logger, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
@@ -21,6 +21,7 @@ class Trainer:
         self.data_to_train = data_to_train
         self.data_to_test = data_to_test
         self.data_to_eval = data_to_eval
+        self.logger = logger
         self.main_device = self.get_main_device(use_gpu)
 
     def get_main_device(self, use_gpu):
@@ -93,21 +94,30 @@ class Trainer:
         dataloader_val = ut.DataLoader(batch_val, batch_size=batch_size, shuffle=True, pin_memory=True)
         dataloader_test = ut.DataLoader(batch_test, batch_size=batch_size, shuffle=True, pin_memory=True)
 
+        summary = tb.SummaryWriter()
+
+        #Train model
+        self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
+                                      epochs, learn_rate, learn_decay, learn_momentum)
+        #Test model
+        self.test_model(model, dataloader_test)
+
+        summary.flush()
+        summary.close()
+
+    def train_and_evaluate_model(self, model, dataloader_train, dataloader_val, summary,
+                                 epochs, learn_rate, learn_decay, learn_momentum):
+
         len_t = len(dataloader_train)
         len_v = len(dataloader_val)
-        len_test = len(dataloader_test)
 
         # select optimizer type, current is SGD
         optimizer = opt.SGD(model.parameters(), lr=learn_rate, weight_decay=learn_decay, momentum=learn_momentum)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
-        summary = tb.SummaryWriter()
-
-        # Training loop
-
         for e in range(epochs):
-            print("Epoch: ", e, " of ", epochs)
+            self.logger.info(f"Epoch: {e} of: {epochs}")
             loss_training = 0
 
             # Training
@@ -124,13 +134,6 @@ class Trainer:
 
                 label = label.to(device=self.main_device, dtype=torch.float32)
 
-                print("out: ",out)
-                print("out1 : ", out[0])
-                print("label: ", label)
-                #print("out ", out.type())
-                #print(out)
-                #print("label", label.type())
-                #print(label)
                 loss = evaluation(out, label)
                 loss.backward()
                 optimizer.step()
@@ -161,13 +164,40 @@ class Trainer:
 
             loss_val /= len_v
 
-            print("Training loss: ", loss_training)
-            print("Validation loss: ", loss_val)
+            self.logger.info(f"Training loss: {loss_training} Validation loss: {loss_val}")
 
             summary.add_scalar('Loss/train', loss_training, e)
             summary.add_scalar('Loss/val', loss_val, e)
 
-        summary.flush()
-        summary.close()
+    def test_model(self, model, test_dataloder):
+        correct = 0
+        fail = 0
+        test_sample = 0
+        len_test = len(test_dataloder)
 
-        # Evaluation
+        model.eval()
+        for i in test_dataloder:
+
+            test = i["image"]
+            label = i["label"]
+
+            with torch.no_grad():
+                test = test.to(device=self.main_device, dtype=torch.float32)
+                out = model(test)
+                label = label.to(device=self.main_device, dtype=torch.float32)
+
+                out = out.cpu().detach().numpy()[0][0]      #Dummyfix to get class 1
+                label = label.cpu().detach().numpy()[0][0]  #Dummyfix to get label 1
+
+                out = 1.0 if out > 0 else 0.0
+
+                if (out == label):
+                    correct += 1
+                    self.logger.info(f"Test sample: {test_sample} -- Number of samples: {len_test}, Correct!")
+                else:
+                    fail += 1
+                    self.logger.info(f"Test sample: {test_sample} -- Number of samples: {len_test}, Fail")
+
+            test_sample += 1
+
+        self.logger.info(f"Accuracy: {(correct/(correct+fail))*100}%")
