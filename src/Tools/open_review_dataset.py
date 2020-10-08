@@ -472,7 +472,6 @@ def convert_pdf_dataset(dataset_base_path: str,
             binary_blob = [image.resize((width, height)) for image in images]
             binary_blob = [ImageOps.grayscale(image) for image in binary_blob]
             binary_blob = [np.array(image) for image in binary_blob]
-            print(binary_blob)
 
             padding = np.zeros((width, height))
 
@@ -499,6 +498,7 @@ def convert_pdf_dataset(dataset_base_path: str,
             binary_blob = _get_rgb()
         if mode == Mode.BigImage:
             assert(num_pages == 8) # NOTE: This mode only works with 8 pages. Can easily be extended
+            binary_blob = _get_grayscale()
             binary_blob = np.hstack(binary_blob)
             row_len = 512
             col_len = 1024
