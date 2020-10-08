@@ -26,6 +26,7 @@ class Mode(Enum):
     Download = "download"
     GSChannels = "gschannels"
     RGBChannels = "rgbchannels"
+    BigImage = "bigimage" # Dont know what to name this lol
 
     def __str__(self):
         return self.value
@@ -467,26 +468,47 @@ def convert_pdf_dataset(dataset_base_path: str,
         # dataset_base_path/papers/name-mode-width-height.npy
         binary_blob = None
 
-        if mode == Mode.GSChannels:
+        def _get_grayscale():
             binary_blob = [image.resize((width, height)) for image in images]
             binary_blob = [ImageOps.grayscale(image) for image in binary_blob]
             binary_blob = [np.array(image) for image in binary_blob]
+            print(binary_blob)
 
             padding = np.zeros((width, height))
 
             # Pad blob so that all have num_pages images
             binary_blob = binary_blob + ([padding] * (num_pages - len(binary_blob)))
             binary_blob = np.array(binary_blob)
-
-        if mode == Mode.RGBChannels:
+            return binary_blob
+        
+        def _get_rgb():
             binary_blob = [image.resize((width, height)) for image in images]
             binary_blob = [np.array(image) for image in binary_blob]
-
+            
             padding = np.zeros((width, height, 3))
 
             # Pad blob so that all have num_pages images
             binary_blob = binary_blob + ([padding] * (num_pages - len(binary_blob)))
             binary_blob = np.array(binary_blob)
+            return binary_blob
+
+        if mode == Mode.GSChannels:
+            binary_blob = _get_grayscale()
+
+        if mode == Mode.RGBChannels:
+            binary_blob = _get_rgb()
+        if mode == Mode.BigImage:
+            assert(num_pages == 8) # NOTE: This mode only works with 8 pages. Can easily be extended
+            binary_blob = np.hstack(binary_blob)
+            row_len = 512
+            col_len = 1024
+            grayscale = True
+            if grayscale:
+                binary_blob = _get_grayscale()
+                binary_blob = binary_blob.reshape(row_len, col_len)
+            else: # rgb
+                binary_blob = _get_rgb()
+                binary_blob = binary_blob.reshape(row_len, col_len, 3)
 
         binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
         np.save(binary_blob_path, binary_blob)
@@ -541,5 +563,13 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBChannels)
+
+    if args.mode == Mode.BigImage:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", args.num_pages),
+                            width=ensure_non_null("image_width", args.image_width),
+                            height=ensure_non_null("image_height", args.image_height),
+                            mode=Mode.BigImage)
+
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
