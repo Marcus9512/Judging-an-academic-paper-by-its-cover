@@ -499,15 +499,14 @@ def convert_pdf_dataset(dataset_base_path: str,
         if mode == Mode.BigImage:
             assert(num_pages == 8) # NOTE: This mode only works with 8 pages. Can easily be extended
             binary_blob = _get_grayscale()
-            binary_blob = np.hstack(binary_blob)
+            binary_blob = np.hstack(binary_blob) #256x2048
+            print(binary_blob.shape)
             row_len = 512
             col_len = 1024
             grayscale = True
             if grayscale:
-                binary_blob = _get_grayscale()
                 binary_blob = binary_blob.reshape(row_len, col_len)
             else: # rgb
-                binary_blob = _get_rgb()
                 binary_blob = binary_blob.reshape(row_len, col_len, 3)
 
         binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
