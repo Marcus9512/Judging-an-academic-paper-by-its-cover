@@ -21,7 +21,6 @@ from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 from enum import Enum
 
-
 class Mode(Enum):
     Download = "download"
     GSChannels = "gschannels"
@@ -493,22 +492,24 @@ def convert_pdf_dataset(dataset_base_path: str,
 
         if mode == Mode.GSChannels:
             binary_blob = _get_grayscale()
-
         if mode == Mode.RGBChannels:
             binary_blob = _get_rgb()
         if mode == Mode.BigImage:
             assert(num_pages == 8) # NOTE: This mode only works with 8 pages. Can easily be extended
-            binary_blob = _get_grayscale()
-            binary_blob = np.hstack(binary_blob) #256x2048
-            print(binary_blob.shape)
-            row_len = 512
-            col_len = 1024
-            grayscale = True
+            num_rows = height*2
+            num_cols = width*4
+            grayscale = False
             if grayscale:
-                binary_blob = binary_blob.reshape(row_len, col_len)
+                binary_blob = _get_grayscale()
+                binary_blob = np.hstack(binary_blob) #256x2048
+                binary_blob = binary_blob.reshape(num_rows, num_cols)
             else: # rgb
-                binary_blob = binary_blob.reshape(row_len, col_len, 3)
+                binary_blob = _get_rgb()
+                binary_blob = np.hstack(binary_blob) #256x2048
+                print(binary_blob.shape)
+                binary_blob = binary_blob.reshape(num_rows, num_cols, 3)
 
+        
         binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
         np.save(binary_blob_path, binary_blob)
 
