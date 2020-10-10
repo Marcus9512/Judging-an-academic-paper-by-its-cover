@@ -3,16 +3,17 @@ Driver class for the network.
 Our "main" method.
 '''
 
-import logging
-import argparse
-import torch
-
-from src.Data_processing.Paper_dataset import *
 from src.Tools.Tools import *
 from src.Network.Trainer import *
+from src.Tools.open_review_dataset import *
 
 LOGGER_NAME = "Network_Driver"
 
+class Network_type(Enum):
+    Resnet = "resnet"
+
+    def __str__(self):
+        return self.value
 
 def sanity_check_paper_dataset(dataset_path):
     '''
@@ -37,25 +38,45 @@ def get_resnet_model(number_of_channels):
     return model
 
 
-def get_model(dataset_type, model="resnet"):
+def get_model(dataset_type, model):
     '''
     Return a network model
     :param model:
     :param dataset_type:
     :return:
     '''
-    if dataset_type == "8_channel_gray":
+    if dataset_type == Mode.GSChannels:
         channels = 8
     else:
         channels = 3
 
-    if model == "resnet":
+    if model == Network_type.Resnet:
         return get_resnet_model(channels)
     return None
 
-def generate_dataset(dataset_type):
+def generate_dataset(args, width, height, num_pages):
     #Generate dataset
-    a = 1
+    if args.dataset == Mode.GSChannels:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", num_pages),
+                            width=ensure_non_null("image_width", width),
+                            height=ensure_non_null("image_height", height),
+                            mode=Mode.GSChannels)
+
+    if args.dataset == Mode.RGBChannels:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", num_pages),
+                            width=ensure_non_null("image_width", width),
+                            height=ensure_non_null("image_height", height),
+                            mode=Mode.RGBChannels)
+
+    if args.dataset == Mode.BigImage:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", num_pages),
+                            width=ensure_non_null("image_width", width),
+                            height=ensure_non_null("image_height", height),
+                            mode=Mode.BigImage)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -63,19 +84,19 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
-    parser.add_argument("--dataset", type=str, help="2x4, single_image or 8channel", required=True)
-    parser.add_argument("--generate", type=str, help="Should we generate dataset, true or false", required=True)
+    parser.add_argument("--dataset", type=str, help="BigImage, RGBChannels or GSChannels", required=True)
+
 
     args = parser.parse_args()
     logger.info(f"Dataset path: {args.base_path} ")
 
     if args.generate:
-        generate_dataset(args.dataset)
+        generate_dataset(args.dataset, 256, 256, 8)
 
     # sanity_check_paper_dataset(args.base_path)
     trainer = Trainer(Paper_dataset(args.base_path), logger=logger)
 
-    model = get_model(args.dataset)
+    model = get_model(args.dataset, Network_type.Resnet)
 
     # Having modified the last layer, see:
     # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
