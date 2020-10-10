@@ -12,8 +12,6 @@ class Paper_dataset(Dataset):
     '''
     def __init__(self, data_path, print_csv=False, resolution=None):
 
-        resolution = None #Resolution is currently disabled
-
         #Set global path and path to meta file
         self.data_path = data_path
         self.path_meta = os.path.join(data_path,"meta.csv")

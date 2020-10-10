@@ -116,6 +116,7 @@ class Trainer:
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
+        #TODO Refactor to only have one loop for both validation and training
         for e in range(epochs):
             self.logger.info(f"Epoch: {e} of: {epochs}")
             loss_training = 0
