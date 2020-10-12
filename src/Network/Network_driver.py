@@ -54,6 +54,58 @@ def get_model(dataset_type, model):
         return get_resnet_model(channels)
     return None
 
+def convert_mode_to_str(mode):
+    if mode == Mode.GSChannels:
+        return "gschannels"
+    elif args == Mode.RGBChannels:
+        return "rtbchannels"
+    elif args == Mode.BigImage:
+        return "bigimage"
+    return None
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(LOGGER_NAME)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
+    parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
+
+    args = parser.parse_args()
+    logger.info(f"Dataset path: {args.base_path} , dataset: {args.dataset}")
+
+    width = 256
+    height = 256
+    pages = 8
+
+    # sanity_check_paper_dataset(args.base_path)
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger)
+
+    model = get_model(args.dataset, Network_type.Resnet)
+
+    trainer.train(model=model, batch_size=10, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=1, image_type=convert_mode_to_str(args.dataset))
+
+    # SAVED INFORMATION
+
+    # Having modified the last layer, see:
+    # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
+    # &&
+    # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L167
+
+    # potential fix if above does not work:
+
+    """
+    model.fc = nn.Linear(512 * 1000, 1)             # where 512 * 1000 = input nodes, 1 = num_classes
+    """
+    # other resnet implementations:
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet34', pretrained=False)
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet50', pretrained=False)
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet101', pretrained=False)
+    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet152', pretrained=False)
+
+'''
+Code graveyard
+
 def generate_dataset(args, width, height, num_pages):
 
     generated = False
@@ -81,60 +133,13 @@ def generate_dataset(args, width, height, num_pages):
         generated = True
 
     return generated
-
-def convert_mode_to_str(mode):
-    if args.dataset == Mode.GSChannels:
-        return "gschannels"
-    elif args.dataset == Mode.RGBChannels:
-        return "rtbchannels"
-    elif args.dataset == Mode.BigImage:
-        return "bigimage"
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(LOGGER_NAME)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
-    parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
+    
+///// main
     parser.add_argument("--generate", type=str, help="Set to yes if data should be generated otherwise no", required=True)
-
-    args = parser.parse_args()
-    logger.info(f"Dataset path: {args.base_path} , dataset: {args.dataset}")
-
-    width = 256
-    height = 256
-    pages = 8
-
     if args.generate == "yes":
-        status = generate_dataset(args, width, height, parser)
+        status = generate_dataset(args, width, height, pages)
         if not status:
             logger.warn(f"No data generated")
             exit(-1)
 
-    # sanity_check_paper_dataset(args.base_path)
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger)
-
-    model = get_model(args.dataset, Network_type.Resnet)
-
-    trainer.train(model=model, batch_size=10, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=1, image_type=convert_mode_to_str(args.dataset))
-
-
-
-    # SAVED INFORMATION
-
-    # Having modified the last layer, see:
-    # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
-    # &&
-    # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L167
-
-    # potential fix if above does not work:
-
-    """
-    model.fc = nn.Linear(512 * 1000, 1)             # where 512 * 1000 = input nodes, 1 = num_classes
-    """
-    # other resnet implementations:
-    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet34', pretrained=False)
-    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet50', pretrained=False)
-    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet101', pretrained=False)
-    # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet152', pretrained=False)
+'''
