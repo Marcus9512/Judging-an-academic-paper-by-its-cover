@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
-    parser.add_argument("--dataset", type=Mode, help="BigImage, RGBChannels or GSChannels", required=True)
+    parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
     parser.add_argument("--generate", type=str, help="Set to yes if data should be generated otherwise no", required=True)
 
     args = parser.parse_args()
