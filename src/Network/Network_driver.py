@@ -57,15 +57,15 @@ def get_model(dataset_type, model):
 def convert_mode_to_str(mode):
     if mode == Mode.RGBFrontPage:
         return "rgbfrontpage"
-    elif args == Mode.GSFrontPage:
+    elif mode == Mode.GSFrontPage:
         return "gsfrontpage"
-    elif args == Mode.GSChannels:
+    elif mode == Mode.GSChannels:
         return "gschannels"
-    elif args == Mode.RGBChannels:
+    elif mode == Mode.RGBChannels:
         return "rgbchannels"
-    elif args == Mode.RGBBigImage:
+    elif mode == Mode.RGBBigImage:
         return "rgbbigimage"
-    elif args == Mode.GSBigImage:
+    elif mode == Mode.GSBigImage:
         return "gsbigimage"
     return None
 
