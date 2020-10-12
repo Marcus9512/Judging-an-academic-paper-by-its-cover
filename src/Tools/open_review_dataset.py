@@ -542,7 +542,7 @@ def convert_pdf_dataset(dataset_base_path: str,
                 for pdf_path in pdf_iterator)
 
         with tqdm(total=num_pdfs) as progress_bar:
-            for i in pool.imap_unordered(pdf_to_binary_blob, jobs, chunksize=5):
+            for _ in pool.imap_unordered(pdf_to_binary_blob, jobs, chunksize=5):
                 progress_bar.update()
 
 
