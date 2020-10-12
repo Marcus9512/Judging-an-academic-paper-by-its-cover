@@ -208,3 +208,6 @@ u-net-release/
 /data/train/
 /data/label/
 .venv/
+
+# So we can have data locally without pushing
+data
