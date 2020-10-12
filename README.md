@@ -34,6 +34,15 @@ In the main method in U_net.py you can select which tests that should be preform
 
 ## Preprocessing
 
+- [Download dataset](#download-dataset)
+- Dataset Types
+    - [Grayscale Channels](#grayscale-channels)
+    - [RGB Channels](#rgb-channels)
+    - [Grayscale BigImage](#grayscale-big-image)
+    - [RGB BigImage](#grayscale-big-image)
+    - [Grayscale FrontPage](#grayscale-frontpage)
+    - [RGB FrontPage](#rgb-frontpage)
+
 ### Download dataset
 
 ```bash
@@ -48,7 +57,7 @@ python3 src/Tools/open_review_dataset.py\
     --mode=download   
 ```
 
-### GSChannels
+### Grayscale Channels
 
 ```bash
 python3 src/Tools/open_review_dataset.py \
@@ -56,10 +65,11 @@ python3 src/Tools/open_review_dataset.py \
   --image_width=256\
   --image_height=256\
   --num_pages=8\
-  --mode=gschannels
+  --mode=gs-channels\
+  --num_processes=6
 ```
 
-### RGBChannels
+### RGB Channels
 
 ```bash
 python3 src/Tools/open_review_dataset.py \
@@ -67,5 +77,49 @@ python3 src/Tools/open_review_dataset.py \
   --image_width=256\
   --image_height=256\
   --num_pages=8\
-  --mode=rgbchannels
+  --mode=rgb-channels\
+  --num_processes=6
+```
+
+### Grayscale Big Image
+
+```bash
+python3 src/Tools/open_review_dataset.py \
+  --base_path=data\
+  --image_width=256\
+  --image_height=256\
+  --num_pages=8\
+  --mode=gs-bigimage\
+  --num_processes=6
+```
+### RGB Big Image
+
+```bash
+python3 src/Tools/open_review_dataset.py \
+  --base_path=data\
+  --image_width=256\
+  --image_height=256\
+  --num_pages=8\
+  --mode=rgb-bigimage\
+  --num_processes=6
+```
+### Grayscale Frontpage
+
+```bash
+python3 src/Tools/open_review_dataset.py \
+  --base_path=data\
+  --image_width=256\
+  --image_height=256\
+  --mode=gs-frontpage\
+  --num_processes=6
+```
+### RGB Frontpage
+
+```bash
+python3 src/Tools/open_review_dataset.py \
+  --base_path=data\
+  --image_width=256\
+  --image_height=256\
+  --mode=rgb-frontpage\
+  --num_processes=6
 ```

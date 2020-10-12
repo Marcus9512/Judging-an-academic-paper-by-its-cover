@@ -18,14 +18,18 @@ import pathlib
 import argparse
 import pandas as pd
 from tqdm import tqdm
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import ThreadPool, Pool
 from enum import Enum
+
 
 class Mode(Enum):
     Download = "download"
-    GSChannels = "gschannels"
-    RGBChannels = "rgbchannels"
-    BigImage = "bigimage" # Dont know what to name this lol
+    RGBFrontPage = "rgb-frontpage"
+    GSFrontPage = "gs-frontpage"
+    GSChannels = "gs-channels"
+    RGBChannels = "rgb-channels"
+    RGBBigImage = "rgb-bigimage"
+    GSBigImage = "gs-bigimage"
 
     def __str__(self):
         return self.value
@@ -290,6 +294,7 @@ def download_pdfs(sources: List[ScrapeURLs],
     logger = logging.getLogger(LOGGER_NAME)
 
     logger.info("Starting Download & Conversion of papers")
+    logger.info(f"Using {num_threads} threads")
     # Lazy downloading papers, Downloading all at once won't fit in memory.. just one ICML + MIDL takes more than
     # 30GB memory
     papers = (paper
@@ -350,7 +355,7 @@ def download_pdfs(sources: List[ScrapeURLs],
     pd.DataFrame(meta_features).to_csv(base_path / "meta.csv", index=False)
 
 
-def pdf_loader(base_path: str) -> Iterator[Tuple[str, bytes]]:
+def pdf_loader(base_path: str):
     logger = logging.getLogger(LOGGER_NAME)
 
     base_path = pathlib.Path(base_path)
@@ -366,11 +371,11 @@ def pdf_loader(base_path: str) -> Iterator[Tuple[str, bytes]]:
 
     pdfs = list(paper_path.glob("*.pdf"))
 
-    with tqdm(total=len(pdfs)) as progress_bar:
+    def _pdf_iterator():
         for paper in pdfs:
-            with open(str(paper), "rb") as pdf_file:
-                yield paper.stem, pdf_file.read()
-                progress_bar.update()
+            yield paper
+
+    return len(pdfs), _pdf_iterator()
 
 
 def pdf_to_images(name: str, pdf: bytes, num_pages: int):
@@ -441,11 +446,83 @@ def pdf_to_images(name: str, pdf: bytes, num_pages: int):
         )
 
 
+def pdf_to_binary_blob(arguments: Tuple):
+    dataset_base_path, num_pages, width, height, mode, pdf_path = arguments
+    """Loads pdfs and converts the to a binary blob
+
+    Args:
+        dataset_base_path: path to the base of a pdf dataset
+        num_pages: Number of pages to include in paper images
+        width: Width of the resulting images
+        height: Height of the resulting images
+        mode: The mode of image conversion, e.g GSChannels, RGBChannels..
+        pdf_path: Path to a pdf file
+    """
+    # Inherit the variables from the outerscope
+
+    # Load the PDF file
+    with open(pdf_path, "rb") as pdf_file:
+        name = pathlib.Path(pdf_path).stem
+        pdf = pdf_file.read()
+
+    images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
+
+    # If we were unable to extract images
+    if images is None:
+        return
+
+    # The binary blob is what will be written to the file
+    # dataset_base_path/papers/name-mode-width-height.npy
+    binary_blob = None
+
+    def _get_grayscale():
+        _binary_blob = [image.resize((width, height)) for image in images]
+        _binary_blob = [ImageOps.grayscale(image) for image in _binary_blob]
+        _binary_blob = [np.array(image) for image in _binary_blob]
+
+        padding = np.zeros((width, height))
+
+        # Pad blob so that all have num_pages images
+        _binary_blob = _binary_blob + ([padding] * (num_pages - len(_binary_blob)))
+        _binary_blob = np.array(_binary_blob)
+        return _binary_blob
+
+    def _get_rgb():
+        _binary_blob = [image.resize((width, height)) for image in images]
+        _binary_blob = [np.array(image) for image in _binary_blob]
+
+        padding = np.zeros((width, height, 3))
+
+        # Pad blob so that all have num_pages images
+        _binary_blob = _binary_blob + ([padding] * (num_pages - len(_binary_blob)))
+        _binary_blob = np.array(_binary_blob)
+        return _binary_blob
+
+    if mode == Mode.GSChannels or mode == Mode.GSFrontPage:
+        binary_blob = _get_grayscale()
+    if mode == Mode.RGBChannels or mode == Mode.RGBFrontPage:
+        binary_blob = _get_rgb()
+    if mode == Mode.RGBBigImage:
+        assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
+        binary_blob = _get_rgb()
+        binary_blob = np.hstack(binary_blob)  # 256x2048
+        binary_blob = binary_blob.reshape(height * 2, width * 4, 3)
+    if mode == Mode.GSBigImage:
+        assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
+        binary_blob = _get_grayscale()
+        binary_blob = np.hstack(binary_blob)  # 256x2048
+        binary_blob = binary_blob.reshape(height * 2, width * 4)
+
+    binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
+    np.save(binary_blob_path, binary_blob)
+
+
 def convert_pdf_dataset(dataset_base_path: str,
                         num_pages: int,
                         width: int,
                         height: int,
-                        mode: Mode):
+                        mode: Mode,
+                        num_processes: int):
     """Convert the pdf dataset into a different representation, e.g grayscaled images
     Args:
         dataset_base_path: path to the base of a pdf dataset
@@ -453,65 +530,20 @@ def convert_pdf_dataset(dataset_base_path: str,
         width: Width of the resulting images
         height: Height of the resulting images
         mode: The mode of image conversion, e.g GSChannels, RGBChannels..
+        num_processes: The number of processes to use in dataset creation
     Returns:
         Nothing, this writes to the dataset_base_path/papers directory
     """
-    for name, pdf in pdf_loader(dataset_base_path):
-        images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
 
-        # If we were unable to extract images
-        if images is None:
-            continue
+    with Pool(processes=num_processes) as pool:
+        num_pdfs, pdf_iterator = pdf_loader(base_path=dataset_base_path)
 
-        # The binary blob is what will be written to the file
-        # dataset_base_path/papers/name-mode-width-height.npy
-        binary_blob = None
+        jobs = ((dataset_base_path, num_pages, width, height, mode, pdf_path)
+                for pdf_path in pdf_iterator)
 
-        def _get_grayscale():
-            binary_blob = [image.resize((width, height)) for image in images]
-            binary_blob = [ImageOps.grayscale(image) for image in binary_blob]
-            binary_blob = [np.array(image) for image in binary_blob]
-
-            padding = np.zeros((width, height))
-
-            # Pad blob so that all have num_pages images
-            binary_blob = binary_blob + ([padding] * (num_pages - len(binary_blob)))
-            binary_blob = np.array(binary_blob)
-            return binary_blob
-        
-        def _get_rgb():
-            binary_blob = [image.resize((width, height)) for image in images]
-            binary_blob = [np.array(image) for image in binary_blob]
-            
-            padding = np.zeros((width, height, 3))
-
-            # Pad blob so that all have num_pages images
-            binary_blob = binary_blob + ([padding] * (num_pages - len(binary_blob)))
-            binary_blob = np.array(binary_blob)
-            return binary_blob
-
-        if mode == Mode.GSChannels:
-            binary_blob = _get_grayscale()
-        if mode == Mode.RGBChannels:
-            binary_blob = _get_rgb()
-        if mode == Mode.BigImage:
-            assert(num_pages == 8) # NOTE: This mode only works with 8 pages. Can easily be extended
-            num_rows = height*2
-            num_cols = width*4
-            grayscale = False
-            if grayscale:
-                binary_blob = _get_grayscale()
-                binary_blob = np.hstack(binary_blob) #256x2048
-                binary_blob = binary_blob.reshape(num_rows, num_cols)
-            else: # rgb
-                binary_blob = _get_rgb()
-                binary_blob = np.hstack(binary_blob) #256x2048
-                print(binary_blob.shape)
-                binary_blob = binary_blob.reshape(num_rows, num_cols, 3)
-
-        
-        binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
-        np.save(binary_blob_path, binary_blob)
+        with tqdm(total=num_pdfs) as progress_bar:
+            for _ in pool.imap_unordered(pdf_to_binary_blob, jobs, chunksize=5):
+                progress_bar.update()
 
 
 if __name__ == "__main__":
@@ -527,6 +559,7 @@ if __name__ == "__main__":
     parser.add_argument("--image_height", type=int, help="height of stored images")
     parser.add_argument("--num_pages", type=int, help="number of pages stored per paper")
     parser.add_argument("--num_threads", type=int, help="Number of threads to run download in")
+    parser.add_argument("--num_processes", type=int, help="Number of processes to run dataset conversion in")
     parser.add_argument("--mode", type=Mode, choices=list(Mode))
 
     args = parser.parse_args()
@@ -555,21 +588,50 @@ if __name__ == "__main__":
                             num_pages=ensure_non_null("num_pages", args.num_pages),
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
-                            mode=Mode.GSChannels)
+                            mode=Mode.GSChannels,
+                            num_processes=ensure_non_null("num_processes", args.num_processes))
 
     if args.mode == Mode.RGBChannels:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
                             num_pages=ensure_non_null("num_pages", args.num_pages),
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
-                            mode=Mode.RGBChannels)
+                            mode=Mode.RGBChannels,
+                            num_processes=ensure_non_null("num_processes", args.num_processes))
 
-    if args.mode == Mode.BigImage:
+    if args.mode == Mode.GSBigImage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
                             num_pages=ensure_non_null("num_pages", args.num_pages),
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
-                            mode=Mode.BigImage)
+                            mode=Mode.GSBigImage,
+                            num_processes=ensure_non_null("num_processes", args.num_processes))
+
+    if args.mode == Mode.RGBBigImage:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            num_pages=ensure_non_null("num_pages", args.num_pages),
+                            width=ensure_non_null("image_width", args.image_width),
+                            height=ensure_non_null("image_height", args.image_height),
+                            mode=Mode.RGBBigImage,
+                            num_processes=ensure_non_null("num_processes", args.num_processes))
+
+    if args.mode == Mode.GSFrontPage:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            # Gets only frontpage
+                            num_pages=1,
+                            width=ensure_non_null("image_width", args.image_width),
+                            height=ensure_non_null("image_height", args.image_height),
+                            mode=Mode.GSFrontPage,
+                            num_processes=ensure_non_null("num_processes", args.num_processes))
+
+    if args.mode == Mode.RGBFrontPage:
+        convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
+                            # Gets only frontpage
+                            num_pages=1,
+                            width=ensure_non_null("image_width", args.image_width),
+                            height=ensure_non_null("image_height", args.image_height),
+                            mode=Mode.RGBFrontPage,
+                            num_processes=ensure_non_null("num_processes", args.num_processes))
 
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
