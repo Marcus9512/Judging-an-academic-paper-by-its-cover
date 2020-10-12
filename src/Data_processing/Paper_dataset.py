@@ -22,12 +22,18 @@ class Paper_dataset(Dataset):
         self.data_path = data_path
         path_meta = os.path.join(data_path,"meta.csv")
 
-        if dataset_type == Mode.BigImage:
-            self.dataset_type = "-bigimage-"
-        elif dataset_type == Mode.RGBChannels:
-            self.dataset_type = "-rgbchannels-"
+        if dataset_type == Mode.RGBFrontPage:
+            self.dataset_type = "-rgb-frontpage-"
+        elif dataset_type == Mode.GSFrontPage:
+            self.dataset_type = "-gs-frontpage-"
         elif dataset_type == Mode.GSChannels:
-            self.dataset_type = "-gschannels-"
+            self.dataset_type = "-gs-channels-"
+        elif dataset_type == Mode.RGBChannels:
+            self.dataset_type = "-rgb-channels-"
+        elif dataset_type == Mode.RGBBigImage:
+            self.dataset_type = "-rgb-bigimage-"
+        elif dataset_type == Mode.GSBigImage:
+            self.dataset_type = "-gs-bigimage-"
         else:
             print("NO VALID DATASET")
             exit()

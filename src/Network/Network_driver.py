@@ -55,12 +55,18 @@ def get_model(dataset_type, model):
     return None
 
 def convert_mode_to_str(mode):
-    if mode == Mode.GSChannels:
+    if mode == Mode.RGBFrontPage:
+        return "rgbfrontpage"
+    elif args == Mode.GSFrontPage:
+        return "gsfrontpage"
+    elif args == Mode.GSChannels:
         return "gschannels"
     elif args == Mode.RGBChannels:
-        return "rtbchannels"
-    elif args == Mode.BigImage:
-        return "bigimage"
+        return "rgbchannels"
+    elif args == Mode.RGBBigImage:
+        return "rgbbigimage"
+    elif args == Mode.GSBigImage:
+        return "gsbigimage"
     return None
 
 if __name__ == "__main__":
