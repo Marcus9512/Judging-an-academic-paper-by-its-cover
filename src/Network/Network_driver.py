@@ -55,6 +55,8 @@ def get_model(dataset_type, model):
     return None
 
 def generate_dataset(args, width, height, num_pages):
+
+    generated = False
     #Generate dataset
     if args.dataset == Mode.GSChannels:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -62,21 +64,31 @@ def generate_dataset(args, width, height, num_pages):
                             width=ensure_non_null("image_width", width),
                             height=ensure_non_null("image_height", height),
                             mode=Mode.GSChannels)
-
-    if args.dataset == Mode.RGBChannels:
+        generated = True
+    elif args.dataset == Mode.RGBChannels:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
                             num_pages=ensure_non_null("num_pages", num_pages),
                             width=ensure_non_null("image_width", width),
                             height=ensure_non_null("image_height", height),
                             mode=Mode.RGBChannels)
-
-    if args.dataset == Mode.BigImage:
+        generated = True
+    elif args.dataset == Mode.BigImage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
                             num_pages=ensure_non_null("num_pages", num_pages),
                             width=ensure_non_null("image_width", width),
                             height=ensure_non_null("image_height", height),
                             mode=Mode.BigImage)
+        generated = True
 
+    return generated
+
+def convert_mode_to_str(mode):
+    if args.dataset == Mode.GSChannels:
+        return "gschannels"
+    elif args.dataset == Mode.RGBChannels:
+        return "rtbchannels"
+    elif args.dataset == Mode.BigImage:
+        return "bigimage"
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -84,19 +96,32 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
-    parser.add_argument("--dataset", type=str, help="BigImage, RGBChannels or GSChannels", required=True)
-
+    parser.add_argument("--dataset", type=Mode, help="BigImage, RGBChannels or GSChannels", required=True)
+    parser.add_argument("--generate", type=str, help="Set to yes if data should be generated otherwise no", required=True)
 
     args = parser.parse_args()
-    logger.info(f"Dataset path: {args.base_path} ")
+    logger.info(f"Dataset path: {args.base_path} , dataset: {args.dataset}")
 
-    if args.generate:
-        generate_dataset(args.dataset, 256, 256, 8)
+    width = 256
+    height = 256
+    pages = 8
+
+    if args.generate == "yes":
+        status = generate_dataset(args, width, height, parser)
+        if not status:
+            logger.warn(f"No data generated")
+            exit(-1)
 
     # sanity_check_paper_dataset(args.base_path)
-    trainer = Trainer(Paper_dataset(args.base_path), logger=logger)
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger)
 
     model = get_model(args.dataset, Network_type.Resnet)
+
+    trainer.train(model=model, batch_size=10, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=1, image_type=convert_mode_to_str(args.dataset))
+
+
+
+    # SAVED INFORMATION
 
     # Having modified the last layer, see:
     # https://github.com/pytorch/vision/blob/21153802a3086558e9385788956b0f2808b50e51/torchvision/models/resnet.py#L99
@@ -113,5 +138,3 @@ if __name__ == "__main__":
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet50', pretrained=False)
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet101', pretrained=False)
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet152', pretrained=False)
-
-    trainer.train(model=model, batch_size=1, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=10)

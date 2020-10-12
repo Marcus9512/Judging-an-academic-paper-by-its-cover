@@ -1,8 +1,11 @@
 import os
 import numpy as np
 from torch.utils.data import *
-from PIL import Image
+from os import path
+from src.Tools.open_review_dataset import *
+
 import pandas as pd
+
 
 class Paper_dataset(Dataset):
 
@@ -10,25 +13,70 @@ class Paper_dataset(Dataset):
         Creates a "Paper_dataset" from the data given in meta.
         At the moment the file
     '''
-    def __init__(self, data_path, print_csv=False, resolution=None):
+    def __init__(self, data_path, dataset_type, width, height, print_csv=False):
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(LOGGER_NAME)
+        self.logger = logger
 
         #Set global path and path to meta file
         self.data_path = data_path
-        self.path_meta = os.path.join(data_path,"meta.csv")
+        path_meta = os.path.join(data_path,"meta.csv")
 
-        self.res = resolution
+        if dataset_type == Mode.BigImage:
+            self.dataset_type = "-bigimage-"
+        elif dataset_type == Mode.RGBChannels:
+            self.dataset_type = "-rgbchannels-"
+        elif dataset_type == Mode.GSChannels:
+            self.dataset_type = "-gschannels-"
+        else:
+            print("NO VALID DATASET")
+            exit()
 
-        if not os.path.exists(self.path_meta):
-            raise Exception("Could not find meta file")
-
-        #Save csv and number of rows
-        csv = pd.read_csv(self.path_meta)
-        self.len = len(csv.index)
-        self.csv_data = csv
+        self.res = str(width)+"-"+str(height)
+        self.csv_data, self.len = self.create_usable_csv(path_meta)
 
         if print_csv:
-            print(csv.index)
-            print(csv)
+            print(self.csv_data.index)
+            print(self.csv_data)
+
+    def get_csv_and_length(self, meta_path):
+        '''
+        Returns content of a csv and its length
+        :return:
+        '''
+        if not os.path.exists(meta_path):
+            raise Exception("Could not find meta file")
+
+            # Save csv and number of rows
+        csv = pd.read_csv(meta_path)
+        return csv, len(csv.index)
+
+    def create_usable_csv(self, meta_path):
+        '''
+        Remove files with that does not exist
+        :param meta_path:
+        :return:
+        '''
+        csv, length = self.get_csv_and_length(meta_path)
+
+        remove_element = []
+        for i in range(length):
+            data = csv.loc[i, :]
+            p = self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res+".npy"
+            #print(data["id"])
+            if not path.exists(p):
+                remove_element.append(i)
+
+        remove = len(remove_element)
+        csv = csv.drop(index=remove_element)
+        length2 = len(csv.index)
+
+        self.logger.info(f"length {length} length2 {length2} remove {remove}")
+        self.logger.info(f"Removed {remove} rows in .meta file")
+        csv.to_csv(self.data_path+ "/meta2.csv", index=False)
+
+        csv = csv.reset_index()
+        return csv, len(csv.index)
 
     def __len__(self):
         return self.len
@@ -39,10 +87,8 @@ class Paper_dataset(Dataset):
         data = self.csv_data.loc[item,:]
 
         ret = {}
-        if self.res == None:
-            image = np.load(self.data_path+"/"+data["image_path"]+".npy")
-        else:
-            image = np.load(self.data_path + "/" + data["image_path"] + self.res+".npy")
+
+        image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res+".npy")
 
 
         image = image / 255

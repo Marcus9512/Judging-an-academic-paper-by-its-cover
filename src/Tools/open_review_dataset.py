@@ -506,13 +506,19 @@ def convert_pdf_dataset(dataset_base_path: str,
             else: # rgb
                 binary_blob = _get_rgb()
                 binary_blob = np.hstack(binary_blob) #256x2048
-                print(binary_blob.shape)
+                #print(binary_blob.shape)
                 binary_blob = binary_blob.reshape(num_rows, num_cols, 3)
 
         
         binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
         np.save(binary_blob_path, binary_blob)
 
+def ensure_non_null(name: str, arg):
+    if arg is None:
+        logger.fatal(f"Missing argument {name}, exiting...")
+        sys.exit(1)
+
+    return arg
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -532,12 +538,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    def ensure_non_null(name: str, arg):
-        if arg is None:
-            logger.fatal(f"Missing argument {name}, exiting...")
-            sys.exit(1)
-
-        return arg
 
 
     timestamp = time.time()
