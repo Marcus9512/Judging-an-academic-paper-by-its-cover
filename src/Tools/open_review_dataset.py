@@ -470,7 +470,7 @@ def pdf_to_binary_blob(arguments: Tuple):
         images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages + 1)
         images = images[1:]
     else:
-        images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages + 1)
+        images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
 
     # If we were unable to extract images
     if images is None:
