@@ -510,13 +510,17 @@ def pdf_to_binary_blob(arguments: Tuple):
     if mode == Mode.RGBBigImage:
         assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
         binary_blob = _get_rgb()
-        binary_blob = np.hstack(binary_blob)
-        binary_blob = binary_blob.reshape(height * 2, width * 4, 3)
+
+        binary_blob_top = np.hstack(binary_blob[0:4])
+        binary_blob_bottom = np.hstack(binary_blob[4:])
+        binary_blob = np.vstack([binary_blob_top, binary_blob_bottom])
     if mode == Mode.GSBigImage:
         assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
         binary_blob = _get_grayscale()
-        binary_blob = np.hstack(binary_blob)
-        binary_blob = binary_blob.reshape(height * 2, width * 4)
+
+        binary_blob_top = np.hstack(binary_blob[0:4])
+        binary_blob_bottom = np.hstack(binary_blob[4:])
+        binary_blob = np.vstack([binary_blob_top, binary_blob_bottom])
 
     binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
     np.save(binary_blob_path, binary_blob)
@@ -571,6 +575,7 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
     binary_blob = np.load(path_to_blob)
     if mode == Mode.RGBBigImage:
         plt.figure(figsize=(10, 6))
+        print(binary_blob.shape)
         plt.imshow(binary_blob)
         plt.savefig(f"{path_to_blob}.png")
     elif mode == Mode.RGBChannels:
