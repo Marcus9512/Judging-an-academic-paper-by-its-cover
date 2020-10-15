@@ -573,7 +573,7 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
         plt.figure(figsize=(10, 6))
         plt.imshow(binary_blob)
         plt.savefig(f"{path_to_blob}.png")
-    if mode == Mode.RGBChannels:
+    elif mode == Mode.RGBChannels:
         plt.figure(figsize=(10, 6))
 
         index = 1
