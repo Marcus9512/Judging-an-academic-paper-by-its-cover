@@ -26,9 +26,18 @@ def convert_images_to_png(papers_path, regex=".*bigimage.*"):
 
 
 if __name__ == "__main__":
+    '''
+        Script to convert .npy images to .png images.
+
+        Example run: python3 img_convert_png.py --img_path=/Users/lovealmgren/Documents/ProjectDataSci/dd2430/src/Tools/papers 
+
+        Can also use e.g --regex=".*BigImage.*" to specify with regex which images in the directory to convert. 
+
+        The new png images will be located at img_path/png_images.
+    '''
     parser = argparse.ArgumentParser()
-    parser.add_argument("--img_convert_path", type=str, help="The path to the npy images you wish to convert to png")
+    parser.add_argument("--img_path", type=str, help="The path to the npy images you wish to convert to png")
     parser.add_argument('--regex', nargs='?', default=".*bigimage.*")
     args = parser.parse_args()
 
-    convert_images_to_png(args.img_convert_path, args.regex)
+    convert_images_to_png(args.img_path, args.regex)
