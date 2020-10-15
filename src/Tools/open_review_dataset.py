@@ -468,13 +468,15 @@ def pdf_to_binary_blob(arguments: Tuple):
     if skip_first_page:
         # Skip the first page, but add a page to the end
         images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages + 1)
-        images = images[1:]
     else:
         images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
 
     # If we were unable to extract images
     if images is None:
         return
+
+    if skip_first_page:
+        images = images[1:]
 
     # The binary blob is what will be written to the file
     # dataset_base_path/papers/name-mode-width-height.npy
