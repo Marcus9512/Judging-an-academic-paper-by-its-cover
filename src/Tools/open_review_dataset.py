@@ -447,7 +447,7 @@ def pdf_to_images(name: str, pdf: bytes, num_pages: int):
 
 
 def pdf_to_binary_blob(arguments: Tuple):
-    dataset_base_path, num_pages, width, height, mode, pdf_path = arguments
+    dataset_base_path, num_pages, width, height, mode, skip_first_page, pdf_path = arguments
     """Loads pdfs and converts the to a binary blob
 
     Args:
@@ -465,7 +465,12 @@ def pdf_to_binary_blob(arguments: Tuple):
         name = pathlib.Path(pdf_path).stem
         pdf = pdf_file.read()
 
-    images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
+    if skip_first_page:
+        # Skip the first page, but add a page to the end
+        images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages + 1)
+        images = images[1:]
+    else:
+        images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
 
     # If we were unable to extract images
     if images is None:
@@ -505,12 +510,12 @@ def pdf_to_binary_blob(arguments: Tuple):
     if mode == Mode.RGBBigImage:
         assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
         binary_blob = _get_rgb()
-        binary_blob = np.hstack(binary_blob)  # 256x2048
+        binary_blob = np.hstack(binary_blob)
         binary_blob = binary_blob.reshape(height * 2, width * 4, 3)
     if mode == Mode.GSBigImage:
         assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
         binary_blob = _get_grayscale()
-        binary_blob = np.hstack(binary_blob)  # 256x2048
+        binary_blob = np.hstack(binary_blob)
         binary_blob = binary_blob.reshape(height * 2, width * 4)
 
     binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
@@ -522,7 +527,8 @@ def convert_pdf_dataset(dataset_base_path: str,
                         width: int,
                         height: int,
                         mode: Mode,
-                        num_processes: int):
+                        num_processes: int,
+                        skip_first_page: bool):
     """Convert the pdf dataset into a different representation, e.g grayscaled images
     Args:
         dataset_base_path: path to the base of a pdf dataset
@@ -538,7 +544,7 @@ def convert_pdf_dataset(dataset_base_path: str,
     with Pool(processes=num_processes) as pool:
         num_pdfs, pdf_iterator = pdf_loader(base_path=dataset_base_path)
 
-        jobs = ((dataset_base_path, num_pages, width, height, mode, pdf_path)
+        jobs = ((dataset_base_path, num_pages, width, height, mode, skip_first_page, pdf_path)
                 for pdf_path in pdf_iterator)
 
         with tqdm(total=num_pdfs) as progress_bar:
@@ -568,6 +574,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_threads", type=int, help="Number of threads to run download in")
     parser.add_argument("--num_processes", type=int, help="Number of processes to run dataset conversion in")
     parser.add_argument("--mode", type=Mode, choices=list(Mode))
+    parser.add_argument('--skip_first_page', action='store_true') # Skip the first page, but add a page to the end
 
     args = parser.parse_args()
 
@@ -590,7 +597,8 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.GSChannels,
-                            num_processes=ensure_non_null("num_processes", args.num_processes))
+                            num_processes=ensure_non_null("num_processes", args.num_processes),
+                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
 
     if args.mode == Mode.RGBChannels:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -598,7 +606,8 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBChannels,
-                            num_processes=ensure_non_null("num_processes", args.num_processes))
+                            num_processes=ensure_non_null("num_processes", args.num_processes),
+                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
 
     if args.mode == Mode.GSBigImage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -606,7 +615,8 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.GSBigImage,
-                            num_processes=ensure_non_null("num_processes", args.num_processes))
+                            num_processes=ensure_non_null("num_processes", args.num_processes),
+                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
 
     if args.mode == Mode.RGBBigImage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -614,7 +624,8 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBBigImage,
-                            num_processes=ensure_non_null("num_processes", args.num_processes))
+                            num_processes=ensure_non_null("num_processes", args.num_processes),
+                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
 
     if args.mode == Mode.GSFrontPage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -623,7 +634,8 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.GSFrontPage,
-                            num_processes=ensure_non_null("num_processes", args.num_processes))
+                            num_processes=ensure_non_null("num_processes", args.num_processes),
+                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
 
     if args.mode == Mode.RGBFrontPage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -632,7 +644,8 @@ if __name__ == "__main__":
                             width=ensure_non_null("image_width", args.image_width),
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBFrontPage,
-                            num_processes=ensure_non_null("num_processes", args.num_processes))
+                            num_processes=ensure_non_null("num_processes", args.num_processes),
+                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
 
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
