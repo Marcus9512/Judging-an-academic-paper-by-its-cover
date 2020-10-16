@@ -163,10 +163,6 @@ if __name__ == "__main__":
     train_pred = model.predict(flat_train_binary_blobs)
     test_pred = model.predict(flat_test_binary_blobs)
 
-    print("Train_pred", train_pred)
-    print("Test_pred", test_pred)
-    print("Test_labels", test_labels)
-
     logger.info("Evaluating..")
     evaluate("train", predictions=train_pred, labels=train_labels)
     evaluate("test", predictions=test_pred, labels=test_labels)
