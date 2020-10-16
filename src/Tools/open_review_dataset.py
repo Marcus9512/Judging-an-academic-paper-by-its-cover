@@ -22,6 +22,7 @@ from multiprocessing.pool import ThreadPool, Pool
 from enum import Enum
 import matplotlib.pyplot as plt
 
+
 class Mode(Enum):
     Download = "download"
     RGBFrontPage = "rgb-frontpage"
