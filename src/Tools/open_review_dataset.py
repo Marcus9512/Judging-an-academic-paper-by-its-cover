@@ -20,7 +20,7 @@ import pandas as pd
 from tqdm import tqdm
 from multiprocessing.pool import ThreadPool, Pool
 from enum import Enum
-
+import matplotlib.pyplot as plt
 
 class Mode(Enum):
     Download = "download"
@@ -510,13 +510,17 @@ def pdf_to_binary_blob(arguments: Tuple):
     if mode == Mode.RGBBigImage:
         assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
         binary_blob = _get_rgb()
-        binary_blob = np.hstack(binary_blob)
-        binary_blob = binary_blob.reshape(height * 2, width * 4, 3)
+
+        binary_blob_top = np.hstack(binary_blob[0:4])
+        binary_blob_bottom = np.hstack(binary_blob[4:])
+        binary_blob = np.vstack([binary_blob_top, binary_blob_bottom])
     if mode == Mode.GSBigImage:
         assert (num_pages == 8)  # NOTE: This mode only works with 8 pages. Can easily be extended
         binary_blob = _get_grayscale()
-        binary_blob = np.hstack(binary_blob)
-        binary_blob = binary_blob.reshape(height * 2, width * 4)
+
+        binary_blob_top = np.hstack(binary_blob[0:4])
+        binary_blob_bottom = np.hstack(binary_blob[4:])
+        binary_blob = np.vstack([binary_blob_top, binary_blob_bottom])
 
     binary_blob_path = f"{dataset_base_path}/papers/{name}-{mode}-{width}-{height}"
     np.save(binary_blob_path, binary_blob)
@@ -552,6 +556,45 @@ def convert_pdf_dataset(dataset_base_path: str,
                 progress_bar.update()
 
 
+def inspect_binary_blob(path_to_blob: str, mode: Mode):
+    """Visualize a binary blob
+
+    Args:
+        path_to_blob: file path to the binary blob
+
+    Returns:
+        Nothing, will plot
+    """
+    logger = logging.getLogger(LOGGER_NAME)
+    path_to_blob = pathlib.Path(path_to_blob)
+
+    if not path_to_blob.is_file():
+        logger.fatal(f"{path_to_blob} is not a valid file")
+        sys.exit(1)
+
+    binary_blob = np.load(path_to_blob)
+    if mode == Mode.RGBBigImage:
+        plt.figure(figsize=(10, 6))
+        print(binary_blob.shape)
+        plt.imshow(binary_blob)
+        plt.savefig(f"{path_to_blob}.png")
+    elif mode == Mode.RGBChannels:
+        plt.figure(figsize=(10, 6))
+
+        index = 1
+        for i in range(4):
+            for j in range(2):
+                plt.subplot(2, 4, index)
+                plt.imshow(binary_blob[index - 1])
+                plt.axis("off")
+
+                index += 1
+
+        plt.savefig(f"{path_to_blob}.png")
+    else:
+        raise NotImplementedError(f"{mode} is not implemented yet")
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
@@ -567,7 +610,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_threads", type=int, help="Number of threads to run download in")
     parser.add_argument("--num_processes", type=int, help="Number of processes to run dataset conversion in")
     parser.add_argument("--mode", type=Mode, choices=list(Mode))
-    parser.add_argument('--skip_first_page', action='store_true') # Skip the first page, but add a page to the end
+    parser.add_argument('--skip_first_page', action='store_true')  # Skip the first page, but add a page to the end
+    parser.add_argument("--inspect", type=str, help="A file to inspect")
 
     args = parser.parse_args()
 
@@ -581,6 +625,12 @@ if __name__ == "__main__":
 
 
     timestamp = time.time()
+
+    # If we run inspection we'll exit afterwards
+    if args.inspect:
+        logger.info(f"Inspecting {args.inspect}")
+        inspect_binary_blob(path_to_blob=args.inspect, mode=args.mode)
+        sys.exit(0)
 
     if args.mode == Mode.Download:
         logger.info(f"Making dataset at {args.base_path} with default sources")

@@ -39,9 +39,12 @@ In the main method in U_net.py you can select which tests that should be preform
     - [Grayscale Channels](#grayscale-channels)
     - [RGB Channels](#rgb-channels)
     - [Grayscale BigImage](#grayscale-big-image)
-    - [RGB BigImage](#grayscale-big-image)
+    - [RGB BigImage](#rgb-big-image)
     - [Grayscale FrontPage](#grayscale-frontpage)
     - [RGB FrontPage](#rgb-frontpage)
+- Inspecting Datasets
+    - [Inspect RGB BigImage](#inspect-rgb-big-image)
+    - [Inspect RGB Channels](#inspect-rgb-channels)
 
 ### Download dataset
 
@@ -122,4 +125,26 @@ python3 src/Tools/open_review_dataset.py \
   --image_height=256\
   --mode=rgb-frontpage\
   --num_processes=6
+```
+
+### Inspect RGB Big Image
+```bash
+IMAGE_PATH=...
+
+python3 src/Tools/open_review_dataset.py \
+  --inspect=data/papers/$IMAGE_PATH\
+  --mode=rgb-bigimage
+
+xd $IMAGE_PATH.png
+```
+
+### Inspect RGB Channels
+```bash
+IMAGE_PATH=...
+
+python3 src/Tools/open_review_dataset.py \
+  --inspect=data/papers/$IMAGE_PATH\
+  --mode=rgb-channels
+
+xd $IMAGE_PATH.png
 ```
