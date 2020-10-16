@@ -73,7 +73,7 @@ def load_data(path_to_meta: str, mode: Mode, width: int, height: int):
         except FileNotFoundError:
             logger.warning(f"{path} does not exist, skipping..")
 
-    return np.array(binary_blobs), np.array(labels)
+    return np.array(binary_blobs).astype(np.float16), np.array(labels)
 
 
 def train_test_split(binary_blobs: np.ndarray, labels: np.ndarray, train_proportion: float):
