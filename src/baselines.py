@@ -30,7 +30,7 @@ class Model(Enum):
 
 
 model_map = {
-    Model.LogisticRegression.value: LogisticRegression(),
+    Model.LogisticRegression.value: LogisticRegression(solver='saga', verbose=10),
     Model.RandomForest.value: RandomForestClassifier()
 }
 
@@ -89,7 +89,8 @@ def train_test_split(binary_blobs: np.ndarray, labels: np.ndarray, train_proport
     test_binary_blobs = binary_blobs[is_test]
     test_labels = labels[is_test]
 
-    return train_binary_blobs, train_labels, test_binary_blobs, test_labels
+    return train_binary_blobs.astype(np.float16), train_labels.astype(np.float16), \
+           test_binary_blobs.astype(np.float16), test_labels.astype(np.float16)
 
 
 def evaluate(name: str, predictions: np.ndarray, labels: np.ndarray):
@@ -128,7 +129,7 @@ if __name__ == "__main__":
 
     binary_blobs, labels = load_data(args.path_to_meta, mode=args.mode, width=args.width, height=args.height)
 
-    flat_binary_blobs = binary_blobs.reshape(len(binary_blobs), -1)
+    flat_binary_blobs = binary_blobs.reshape(len(binary_blobs), -1).astype(np.float16)
 
     logger.info("Splitting..")
     flat_train_binary_blobs, train_labels, flat_test_binary_blobs, test_labels = train_test_split(
