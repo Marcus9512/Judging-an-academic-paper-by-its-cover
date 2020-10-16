@@ -3,6 +3,13 @@ import logging
 import pathlib
 import argparse
 import sys
+import os
+
+# Fixes python path for some 
+sys.path.append(os.getcwd())
+
+print("path", sys.path)
+
 from src.Tools.open_review_dataset import Mode
 from comet_ml import Experiment
 from datetime import datetime
