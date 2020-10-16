@@ -145,6 +145,9 @@ if __name__ == "__main__":
 
     logger.info(f"Fitting {args.model.value}..")
 
+    # Sets experiment name in comet ui
+    experiment.set_name(args.model.value)
+
     model = model_map[args.model.value]
     model.fit(X=flat_train_binary_blobs, y=train_labels)
 
