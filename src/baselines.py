@@ -8,8 +8,6 @@ import os
 # Fixes python path for some 
 sys.path.append(os.getcwd())
 
-print("path", sys.path)
-
 from src.Tools.open_review_dataset import Mode
 from comet_ml import Experiment
 from datetime import datetime
@@ -37,7 +35,7 @@ class Model(Enum):
 
 
 model_map = {
-    Model.LogisticRegression.value: LogisticRegression(solver='saga', verbose=10),
+    Model.LogisticRegression.value: LogisticRegression(solver='saga', verbose=10, max_iter=3, n_jobs=3),
     Model.RandomForest.value: RandomForestClassifier()
 }
 
@@ -134,15 +132,24 @@ if __name__ == "__main__":
 
     timestamp = time.time()
 
+    logger.info("Loading binary blobs..")
     binary_blobs, labels = load_data(args.path_to_meta, mode=args.mode, width=args.width, height=args.height)
 
+    logger.info("Reshaping binary blobs..")
     flat_binary_blobs = binary_blobs.reshape(len(binary_blobs), -1).astype(np.float16)
+
+    # To save memory we can now del old data
+    del binary_blobs
 
     logger.info("Splitting..")
     flat_train_binary_blobs, train_labels, flat_test_binary_blobs, test_labels = train_test_split(
         binary_blobs=flat_binary_blobs,
         labels=labels,
         train_proportion=0.8)
+
+    # To save memory we can now del old data
+    del flat_binary_blobs
+    del labels
 
     logger.info(f"Fitting {args.model.value}..")
 

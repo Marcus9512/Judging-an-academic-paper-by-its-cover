@@ -61,25 +61,25 @@ DEFAULT_SOURCES = [
                decision_notes="MIDL.io/2020/Conference/Paper.*/-/Decision"),
 
     # 47 Accepted 13 Rejected
-    #ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
-    #           decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
+    ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
+               decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
 
-    ## 47 Accepted 36 Rejected
-    #ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
-    #           decision_notes=
-    #           "MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
+    # 47 Accepted 36 Rejected
+    ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
+               decision_notes=
+               "MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
 
-    ## Seems to work , gives 917 rejected, 502 accepted
-    #ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
+    # Seems to work , gives 917 rejected, 502 accepted
+    ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
 
-    ## Seems to work, gives 598 rejected, 337 accepted
-    #ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
+    # Seems to work, gives 598 rejected, 337 accepted
+    ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
 
-    ## 687 Accepted -- 1526 Rejected
-    #ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
+    # 687 Accepted -- 1526 Rejected
+    ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
 
     ##### WORKSHOPS
     # ScrapeURLs(submission_notes="ICLR.cc/2018/Workshop/-/Submission",
