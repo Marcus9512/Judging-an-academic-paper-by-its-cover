@@ -185,7 +185,12 @@ class Trainer:
         self.save_model(model, image_type)
         return model
 
+    def test_from_file(self, model_path, model, test_dataloder):
+        model.load_state_dict(torch.load(model_path))
+        self.test_model(model=model, test_dataloder=test_dataloder)
+
     def test_model(self, model, test_dataloder, print_res=True):
+
         correct = 0
         total = 0
         len_test = len(test_dataloder)
@@ -207,7 +212,7 @@ class Trainer:
                 label = label.cpu().detach().numpy()
 
                 for element in range(len(label)):
-                    pred = 1.0 if out[element][0] > 0 else 0.0
+                    pred = 1.0 if out[element][0] > 0.5 else 0.0
                     found = False
                     if label[element][0] == pred:
                         correct += 1
