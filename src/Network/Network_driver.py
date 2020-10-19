@@ -76,6 +76,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
     parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
+    parser.add_argument("--epochs", type=int, help="Number of epochs", default=50)
 
     args = parser.parse_args()
     logger.info(f"Dataset path: {args.base_path} , dataset: {args.dataset}")
@@ -89,7 +90,7 @@ if __name__ == "__main__":
 
     model = get_model(args.dataset, Network_type.Resnet)
 
-    trainer.train(model=model, batch_size=10, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=1, image_type=convert_mode_to_str(args.dataset))
+    trainer.train(model=model, batch_size=10, learn_rate=0.01, learn_decay=1e-9, learn_momentum=1e-9, epochs=args.epochs, image_type=convert_mode_to_str(args.dataset))
 
     # SAVED INFORMATION
 
