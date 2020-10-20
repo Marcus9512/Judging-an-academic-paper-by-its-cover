@@ -243,8 +243,8 @@ class Trainer:
                         self.logger.info(
                             f"Output from network, predicted: {pred}, label: {label[element][0]}, out: {out[element][0]}, "
                             f"correct: {found}, total correct: {correct}, total: {total}")
-        accuracy=(correct/total)*100
-        self.logger.info(f"Accuracy: {accuracy}%")
+        accuracy=(correct/total)
+        self.logger.info(f"Accuracy: {accuracy*100}%")
         experiment.log_metric(f"test - accuracy", accuracy)
 
         self.logger.info(f"True_pos {true_pos}")
