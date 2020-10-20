@@ -4,6 +4,9 @@ import torch.nn as nn
 import torch.optim as opt
 import torch.utils.data as ut
 import torch.utils.tensorboard as tb
+
+from sklearn.metrics import accuracy_score, recall_score, precision_score
+
 from datetime import datetime
 from src.Data_processing.Paper_dataset import *
 
@@ -16,6 +19,7 @@ from torch import topk
 import numpy as np
 import skimage.transform
 
+
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 # Add the following code anywhere in your machine learning file
 experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
@@ -23,7 +27,7 @@ experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
 
 class Trainer:
 
-    def __init__(self, dataset, logger, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
+    def __init__(self, dataset, logger, name, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
@@ -37,6 +41,8 @@ class Trainer:
         self.data_to_eval = data_to_eval
         self.logger = logger
         self.main_device = self.get_main_device(use_gpu)
+
+        experiment.set_name(name)
 
     def get_main_device(self, use_gpu):
         '''
@@ -286,6 +292,10 @@ class Trainer:
         self.logger.info(f"------Test--------")
         self.logger.info(f"Test, number of samples: {len_test}")
         model.eval()
+
+        preds = np.array([])
+        true_pos = np.array([])
+
         for i in test_dataloder:
 
             test = i["image"]
@@ -302,6 +312,8 @@ class Trainer:
                 for element in range(len(label)):
                     pred = 1.0 if out[element][0] > 0.5 else 0.0
                     found = False
+                    preds = np.append(preds, pred)
+                    true_pos = np.append(true_pos, label[element][0])
                     if label[element][0] == pred:
                         correct += 1
                         found = True
@@ -313,7 +325,19 @@ class Trainer:
                             f"correct: {found}, total correct: {correct}, total: {total}")
         accuracy=(correct/total)*100
         self.logger.info(f"Accuracy: {accuracy}%")
-        experiment.log_metric(f"test - Accuracy", accuracy)
+        experiment.log_metric(f"test - accuracy", accuracy)
+
+        self.logger.info(f"True_pos {true_pos}")
+        self.logger.info(f"Preds {preds}")
+
+        recall = recall_score(y_true=true_pos, y_pred=preds)
+        precision = precision_score(y_true=true_pos, y_pred=preds)
+
+        self.logger.info(f"test -- recall: {recall} -- precision: {precision} ")
+
+        # Log to comet
+        experiment.log_metric(f"test - recall", recall)
+        experiment.log_metric(f"test - precision", precision)
 
 '''
  # Code graveyard
