@@ -1,12 +1,17 @@
+from comet_ml import Experiment
 import torch
 import torch.nn as nn
 import torch.optim as opt
 import torch.utils.data as ut
 import torch.utils.tensorboard as tb
 from datetime import datetime
-
 from src.Data_processing.Paper_dataset import *
 
+
+EXPERIMENT_LAUNCH_TIME = datetime.now()
+# Add the following code anywhere in your machine learning file
+experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
+                        project_name="dd2430", workspace="dd2430")
 
 class Trainer:
 
@@ -181,11 +186,19 @@ class Trainer:
                 total_loss /= elements
                 self.logger.info(f"{session} loss: {total_loss}")
                 summary.add_scalar('Loss/' + session, total_loss, e)
+                # Log to comet
+                experiment.log_metric(f"train {session} - Loss", total_loss)
+
 
         self.save_model(model, image_type)
         return model
 
+    def test_from_file(self, model_path, model, test_dataloder):
+        model.load_state_dict(torch.load(model_path))
+        self.test_model(model=model, test_dataloder=test_dataloder)
+
     def test_model(self, model, test_dataloder, print_res=True):
+
         correct = 0
         total = 0
         len_test = len(test_dataloder)
@@ -207,7 +220,7 @@ class Trainer:
                 label = label.cpu().detach().numpy()
 
                 for element in range(len(label)):
-                    pred = 1.0 if out[element][0] > 0 else 0.0
+                    pred = 1.0 if out[element][0] > 0.5 else 0.0
                     found = False
                     if label[element][0] == pred:
                         correct += 1
@@ -218,9 +231,9 @@ class Trainer:
                         self.logger.info(
                             f"Output from network, predicted: {pred}, label: {label[element][0]}, out: {out[element][0]}, "
                             f"correct: {found}, total correct: {correct}, total: {total}")
-
-
-        self.logger.info(f"Accuracy: {(correct/total)*100}%")
+        accuracy=(correct/total)*100
+        self.logger.info(f"Accuracy: {accuracy}%")
+        experiment.log_metric(f"test - Accuracy", accuracy)
 
 '''
  # Code graveyard
