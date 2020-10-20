@@ -22,6 +22,7 @@ from multiprocessing.pool import ThreadPool, Pool
 from enum import Enum
 import matplotlib.pyplot as plt
 
+
 class Mode(Enum):
     Download = "download"
     RGBFrontPage = "rgb-frontpage"
@@ -468,6 +469,7 @@ def pdf_to_binary_blob(arguments: Tuple):
     if skip_first_page:
         # Skip the first page, but add a page to the end
         images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages + 1)
+        images = images[1:]
     else:
         images = pdf_to_images(name=name, pdf=pdf, num_pages=num_pages)
 
@@ -475,8 +477,14 @@ def pdf_to_binary_blob(arguments: Tuple):
     if images is None:
         return
 
-    if skip_first_page:
-        images = images[1:]
+    # For all images we will drop some pixels at the top because for some conferences
+    # it says in the top if they were accepted or not
+
+    images = np.array([np.array(image) for image in images])
+
+    # Drops first 200 pixels from top
+    images = images[:, 200:, :, :]
+    images = [Image.fromarray(image) for image in images]
 
     # The binary blob is what will be written to the file
     # dataset_base_path/papers/name-mode-width-height.npy
@@ -600,6 +608,11 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
 
                 index += 1
 
+        plt.savefig(f"{path_to_blob}.png")
+    elif mode == Mode.RGBFrontPage:
+        plt.figure(figsize=(10, 6))
+        plt.imshow(binary_blob[0])
+        plt.axis("off")
         plt.savefig(f"{path_to_blob}.png")
     else:
         raise NotImplementedError(f"{mode} is not implemented yet")

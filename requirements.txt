@@ -28,3 +28,5 @@ tld==0.10
 tqdm==4.48.2
 urllib3==1.25.10
 wrapt==1.12.1
+comet-ml
+sklearn

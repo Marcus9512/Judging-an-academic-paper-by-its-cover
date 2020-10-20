@@ -31,6 +31,23 @@ In the main method in U_net.py you can select which tests that should be preform
 * Push your changes to the branch and create a pull-requst via this github page
 * If the tests passes, merge the and delete the branch
 
+## Model baselines
+Pick one model
+
+```bash
+MODEL=random-forest
+MODEL=logistic-regression
+```
+
+```bash
+MODE=rgb-bigimage
+python3 src/baselines.py\
+    --mode=${MODE?}\
+    --model=${MODEL?}\
+    --path_to_meta=data/meta.csv\
+    --width=256\
+    --height=256   
+```
 
 ## Preprocessing
 
@@ -45,6 +62,7 @@ In the main method in U_net.py you can select which tests that should be preform
 - Inspecting Datasets
     - [Inspect RGB BigImage](#inspect-rgb-big-image)
     - [Inspect RGB Channels](#inspect-rgb-channels)
+    - [Inspect RGB Frontpage](#inspect-rgb-frontpage)
 
 ### Download dataset
 
@@ -132,10 +150,10 @@ python3 src/Tools/open_review_dataset.py \
 IMAGE_PATH=...
 
 python3 src/Tools/open_review_dataset.py \
-  --inspect=data/papers/$IMAGE_PATH\
+  --inspect=$IMAGE_PATH\
   --mode=rgb-bigimage
 
-xd $IMAGE_PATH.png
+xdg-open $IMAGE_PATH.png
 ```
 
 ### Inspect RGB Channels
@@ -143,8 +161,18 @@ xd $IMAGE_PATH.png
 IMAGE_PATH=...
 
 python3 src/Tools/open_review_dataset.py \
-  --inspect=data/papers/$IMAGE_PATH\
+  --inspect=$IMAGE_PATH\
   --mode=rgb-channels
 
-xd $IMAGE_PATH.png
+xdg-open $IMAGE_PATH.png
+```
+### Inspect RGB Channels
+```bash
+IMAGE_PATH=...
+
+python3 src/Tools/open_review_dataset.py \
+  --inspect=$IMAGE_PATH\
+  --mode=rgb-frontpage
+
+xdg-open $IMAGE_PATH.png
 ```
