@@ -21,7 +21,7 @@ class saveFeatures():
         self.hook.remove()
 
 
-def getCAM(feature_convolution, weights, class_index):
+def get_CAM(feature_convolution, weights, class_index):
     _, nc, h, w = feature_convolution.shape
     cam = weights[class_index].dot(feature_convolution.reshape((nc, h*w)))
     cam = cam.reshape(h, w)
@@ -31,8 +31,23 @@ def getCAM(feature_convolution, weights, class_index):
 
 
 if __name__ == "__main__":
-    # model = load model
+    # load model:
+    model.load_state_dict(torch.load(model_path))
+    
     # image = load "random" input data
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
+
+    args = parser.parse_args()
+
+    image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res+".npy")
+
+    image = image / 255
+    
+    # This line might be needed by pytorch to switch place for the channel data
+    image = image.transpose((2, 0, 1))
+
+
 
     model.cuda()
     model.eval()

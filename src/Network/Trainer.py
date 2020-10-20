@@ -7,6 +7,14 @@ import torch.utils.tensorboard as tb
 from datetime import datetime
 from src.Data_processing.Paper_dataset import *
 
+from matplotlib import pyplot as plt
+from PIL import Image
+from torchvision import models, transforms
+from torch.autograd import Variable
+from torch.nn import functional as F
+from torch import topk
+import numpy as np
+import skimage.transform
 
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 # Add the following code anywhere in your machine learning file
@@ -116,6 +124,10 @@ class Trainer:
         #Train model
         model = self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
                                       epochs, learn_rate, learn_decay, learn_momentum, image_type)
+
+        # Create CAMs
+        create_CAMs(model, dataloader_val, num_images=1)
+
         #Test model
         self.test_model(model, dataloader_test)
 
@@ -187,11 +199,79 @@ class Trainer:
                 self.logger.info(f"{session} loss: {total_loss}")
                 summary.add_scalar('Loss/' + session, total_loss, e)
                 # Log to comet
-                experiment.log_metric(f"train {session} - Loss", total_loss)
+                # experiment.log_metric(f"train {session} - Loss", total_loss)
 
 
         self.save_model(model, image_type)
         return model
+
+    # CAM implementation stuff:
+    class saveFeatures():
+        features = None
+        def __init__(self, m): 
+            self.hook = m.register_forward_hook(self.hook_fn)
+
+        def hook_fn(self, module, input, output):
+            self.features = ((output.cpu()).data).numpy()
+
+        def remove(self):
+            self.hook.remove()
+
+
+    def get_CAM(feature_convolution, weights, class_index):
+        _, nc, h, w = feature_convolution.shape
+        cam = weights[class_index].dot(feature_convolution.reshape((nc, h*w)))
+        cam = cam.reshape(h, w)
+        cam = cam - np.min(cam)
+        cam_img = cam / np.max(cam)
+        return [cam_img]
+
+    def create_CAM(model, image):
+        model.eval()
+
+        # setup hook to get last convolutional layer
+        final_layer = model._modules.get('layer4')
+        activated_features = saveFeatures(final_layer)
+
+        # make prediction
+        prediction = model(image)
+        pred_probabilities = F.softmax(prediction).data.squeeze()
+        activated_features.remove()
+
+        # get parameters to create CAM
+        weight_softmax_params = list(model._modules.get('fc').parameters())
+        weight_softmax = np.squeeze(weight_softmax_params[0].cpu().data.numpy())
+
+        # get prediction from network (probably not necessary with our implementation - should work without this)
+        class_idx = topk(pred_probabilities,1)[1].int()
+
+        # create heatmap overlay
+        heatmap = getCAM(activated_features.features, weight_softmax, class_idx)
+
+        # show image + overlay
+        plt.imshow(display_transform(image))
+        plt.imshow(skimage.transform.resize(heatmap[0], tensor.shape[1:3]), alpha=0.5, cmap='jet');
+        
+        path = "saved_CAMs"
+        if not os.path.exists(path):
+            os.mkdir(path)
+        t = datetime.now()
+        t = t.strftime("%d-%m-%Y-%H-%M-%S")
+        path = path + "/"+image_type+"-"+t+'.png'
+
+        plt.savefig(path)
+        plt.close()
+
+
+    # TODO: set this to random
+    def create_CAMs(model, dataloader_val, num_images=10):
+        while i < num_images:
+            image = next(iter(dataloader_val))[i, :, :, :]
+
+            create_CAM(model, image)
+            i += 1
+
+
 
     def test_from_file(self, model_path, model, test_dataloder):
         model.load_state_dict(torch.load(model_path))
