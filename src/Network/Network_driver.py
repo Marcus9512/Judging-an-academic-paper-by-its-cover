@@ -76,7 +76,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
     parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
-    parser.add_argument("--name", type=Mode, help="Name of the run on comet", required=True)
+    parser.add_argument("--name", type=str, help="Name of the run on comet", required=True)
 
     parser.add_argument("--lr", type=float, help="learn rate", default=0.01)
     parser.add_argument("--lr_decay", type=float, help="learn decay", default=1e-9)
@@ -92,8 +92,8 @@ if __name__ == "__main__":
     height = 256
     pages = 8
 
-    name = args.name + "_"+convert_mode_to_str(args.dataset)
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=name)
+    run_name = args.name + "_"+convert_mode_to_str(args.dataset)
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=run_name)
 
     model = get_model(args.dataset, Network_type.Resnet)
 
