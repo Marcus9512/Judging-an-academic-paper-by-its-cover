@@ -64,7 +64,7 @@ DEFAULT_SOURCES = [
     ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
                decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
 
-    ## 47 Accepted 36 Rejected
+    # 47 Accepted 36 Rejected
     ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
                decision_notes=
                "MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
