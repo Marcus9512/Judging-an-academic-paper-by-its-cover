@@ -61,25 +61,25 @@ DEFAULT_SOURCES = [
                decision_notes="MIDL.io/2020/Conference/Paper.*/-/Decision"),
 
     # 47 Accepted 13 Rejected
-    #ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
-    #           decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
+    ScrapeURLs(submission_notes="MIDL.io/2019/Conference/-/Full_Submission",
+               decision_notes="MIDL.io/2019/Conference/-/Paper.*/Decision"),
 
     ## 47 Accepted 36 Rejected
-    #ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
-    #           decision_notes=
-    #           "MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
+    ScrapeURLs(submission_notes="MIDL.amsterdam/2018/Conference/-/Submission",
+               decision_notes=
+               "MIDL.amsterdam/2018/Conference/-/Paper.*/Acceptance_Decision"),
 
-    ## Seems to work , gives 917 rejected, 502 accepted
-    #ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
+    # Seems to work , gives 917 rejected, 502 accepted
+    ScrapeURLs(submission_notes="ICLR.cc/2019/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2019/Conference/-/Paper.*/Meta_Review"),
 
-    ## Seems to work, gives 598 rejected, 337 accepted
-    #ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
+    # Seems to work, gives 598 rejected, 337 accepted
+    ScrapeURLs(submission_notes="ICLR.cc/2018/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2018/Conference/-/Acceptance_Decision"),
 
-    ## 687 Accepted -- 1526 Rejected
-    #ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
-    #           decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
+    # 687 Accepted -- 1526 Rejected
+    ScrapeURLs(submission_notes="ICLR.cc/2020/Conference/-/Blind_Submission",
+               decision_notes="ICLR.cc/2020/Conference/Paper.*/-/Decision"),
 
     ##### WORKSHOPS
     # ScrapeURLs(submission_notes="ICLR.cc/2018/Workshop/-/Submission",
@@ -477,6 +477,15 @@ def pdf_to_binary_blob(arguments: Tuple):
     if images is None:
         return
 
+    # For all images we will drop some pixels at the top because for some conferences
+    # it says in the top if they were accepted or not
+
+    images = np.array([np.array(image) for image in images])
+
+    # Drops first 200 pixels from top
+    images = images[:, 200:, :, :]
+    images = [Image.fromarray(image) for image in images]
+
     # The binary blob is what will be written to the file
     # dataset_base_path/papers/name-mode-width-height.npy
     binary_blob = None
@@ -591,6 +600,11 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
 
                 index += 1
 
+        plt.savefig(f"{path_to_blob}.png")
+    elif mode == Mode.RGBFrontPage:
+        plt.figure(figsize=(10, 6))
+        plt.imshow(binary_blob[0])
+        plt.axis("off")
         plt.savefig(f"{path_to_blob}.png")
     else:
         raise NotImplementedError(f"{mode} is not implemented yet")

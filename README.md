@@ -62,6 +62,7 @@ python3 src/baselines.py\
 - Inspecting Datasets
     - [Inspect RGB BigImage](#inspect-rgb-big-image)
     - [Inspect RGB Channels](#inspect-rgb-channels)
+    - [Inspect RGB Frontpage](#inspect-rgb-frontpage)
 
 ### Download dataset
 
@@ -149,10 +150,10 @@ python3 src/Tools/open_review_dataset.py \
 IMAGE_PATH=...
 
 python3 src/Tools/open_review_dataset.py \
-  --inspect=data/papers/$IMAGE_PATH\
+  --inspect=$IMAGE_PATH\
   --mode=rgb-bigimage
 
-xd $IMAGE_PATH.png
+xdg-open $IMAGE_PATH.png
 ```
 
 ### Inspect RGB Channels
@@ -160,8 +161,18 @@ xd $IMAGE_PATH.png
 IMAGE_PATH=...
 
 python3 src/Tools/open_review_dataset.py \
-  --inspect=data/papers/$IMAGE_PATH\
+  --inspect=$IMAGE_PATH\
   --mode=rgb-channels
 
-xd $IMAGE_PATH.png
+xdg-open $IMAGE_PATH.png
+```
+### Inspect RGB Channels
+```bash
+IMAGE_PATH=...
+
+python3 src/Tools/open_review_dataset.py \
+  --inspect=$IMAGE_PATH\
+  --mode=rgb-frontpage
+
+xdg-open $IMAGE_PATH.png
 ```
