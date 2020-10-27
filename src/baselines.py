@@ -172,6 +172,8 @@ if __name__ == "__main__":
     # Sets experiment name in comet ui
     experiment.set_name(args.model.value)
     experiment.add_tag(args.comet_tag)
+    experiment.add_tag(args.mode.value)
+    experiment.add_tag(args.dim_reduction.value)
 
     logger.info(f"Train size: {flat_train_binary_blobs.shape}")
 
