@@ -19,7 +19,7 @@ experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
 
 class Trainer:
 
-    def __init__(self, dataset, logger, name, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
+    def __init__(self, dataset, logger, name, dataset_type, network_type, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
@@ -35,6 +35,8 @@ class Trainer:
         self.main_device = self.get_main_device(use_gpu)
 
         experiment.set_name(name)
+        experiment.add_tag(dataset_type.value)
+        experiment.add_tag(network_type.value)
 
     def get_main_device(self, use_gpu):
         '''

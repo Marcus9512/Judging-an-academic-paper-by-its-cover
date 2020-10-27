@@ -92,10 +92,12 @@ if __name__ == "__main__":
     height = 256
     pages = 8
 
-    run_name = args.name + "_"+convert_mode_to_str(args.dataset)
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=run_name)
-
+    network_type = Network_type.Resnet
     model = get_model(args.dataset, Network_type.Resnet)
+
+    run_name = args.name + "_"+convert_mode_to_str(args.dataset)
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=run_name,
+                      network_type=network_type, dataset_type=args.dataset)
 
     trainer.train(model=model, batch_size=args.batch_size, learn_rate=args.lr, learn_decay=args.lr_decay,
                   learn_momentum=args.lr_momentum, epochs=args.epochs, image_type=convert_mode_to_str(args.dataset))
