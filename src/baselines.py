@@ -153,6 +153,7 @@ if __name__ == "__main__":
     logger.info("Reshaping binary blobs..")
     flat_binary_blobs = binary_blobs.reshape(len(binary_blobs), -1).astype(np.float16)
 
+    logger.info("Normalizing binary blobs..")
     # Normalize image
     flat_binary_blobs = flat_binary_blobs / flat_binary_blobs.max()
 
@@ -200,7 +201,7 @@ if __name__ == "__main__":
     evaluate("test", predictions=test_pred, labels=test_labels)
 
     if args.model == Model.LogisticRegression and args.dim_reduction == DimReduction.PCA:
-        n = 3
+        n = 4
         s = model.coef_[0].argsort()
 
         top_n_smallest = s[:n]
