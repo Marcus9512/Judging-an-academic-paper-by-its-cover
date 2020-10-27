@@ -131,6 +131,9 @@ class Trainer:
         model = self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
                                       epochs, learn_rate, learn_decay, learn_momentum, image_type)
 
+        #if not model.parameters().is_cuda:
+        #    print("Marcus big dumbdumb")
+
         # Create CAMs
         self.create_CAMs(model, dataloader_val, num_images=1)
 
@@ -211,6 +214,13 @@ class Trainer:
         self.save_model(model, image_type)
         return model
 
+    def imshow(self, img):
+        import matplotlib.pyplot as plt
+        #img = img / 2 + 0.5  # unnormalize
+        npimg = img.numpy()
+        plt.imshow(np.transpose(npimg, (1, 2, 0)))
+        plt.show()
+
     # CAM implementation stuff:
     class save_features():
         features = None
@@ -233,13 +243,17 @@ class Trainer:
 
     def create_CAM(self, model, image):
         model.eval()
+        # model.to(self.main_device)            # <-doesn't work, same error: "Expected device type cuda but got device type cpu"
+        model.gpu()
 
         # setup hook to get last convolutional layer
         final_layer = model._modules.get('layer4')
-        activated_features = save_features(final_layer)
+        activated_features = self.save_features(final_layer)
 
         # make prediction
-        prediction = model(image)
+        image_pred = image.reshape(1, 3, 512, 1024)
+        # type CPU vs GPU?
+        prediction = model(image_pred)
         pred_probabilities = F.softmax(prediction).data.squeeze()
         activated_features.remove()
 
@@ -251,11 +265,10 @@ class Trainer:
         class_idx = topk(pred_probabilities,1)[1].int()
 
         # create heatmap overlay
-        heatmap = get_CAM(activated_features.features, weight_softmax, class_idx)
+        heatmap = self.get_CAM(activated_features.features, weight_softmax, class_idx)
 
         # show image + overlay
-        display_transform = transforms.Compose([transforms.Resize((224,224))])
-        plt.imshow(display_transform(image))
+        self.imshow(image)
         plt.imshow(skimage.transform.resize(heatmap[0], tensor.shape[1:3]), alpha=0.5, cmap='jet');
         
         path = "saved_CAMs"
@@ -274,17 +287,12 @@ class Trainer:
         for i in range(num_images):
             # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
             image = next(iter(dataloader_val))['image'][0]
+            # print(image.shape):
+            # [3, 512, 1024]
+            # self.imshow(image)
+            # ^works!
 
-            print(image.shape)
-
-            image_test = transforms.ToPILImage(mode='RGB')(image)
-            
-            
-            plt.imshow(image_test)
-            plt.show()
-
-
-            create_CAM(model, image)
+            self.create_CAM(model, image)
 
     def test_from_file(self, model_path, model, test_dataloder):
         model.load_state_dict(torch.load(model_path))
