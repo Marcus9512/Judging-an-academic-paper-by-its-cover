@@ -76,7 +76,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
     parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
-    parser.add_argument("--name", type=str, help="Name of the run on comet", required=True)
 
     parser.add_argument("--lr", type=float, help="learn rate", default=0.01)
     parser.add_argument("--lr_decay", type=float, help="learn decay", default=1e-9)
@@ -96,11 +95,14 @@ if __name__ == "__main__":
     model = get_model(args.dataset, Network_type.Resnet)
 
     run_name = args.name + "_"+convert_mode_to_str(args.dataset)
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=run_name,
+    timestamp = time.time()
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger,
                       network_type=network_type, dataset_type=args.dataset)
 
     trainer.train(model=model, batch_size=args.batch_size, learn_rate=args.lr, learn_decay=args.lr_decay,
                   learn_momentum=args.lr_momentum, epochs=args.epochs, image_type=convert_mode_to_str(args.dataset))
+    logger.info(
+        f"Execution time was {time.time() - timestamp} seconds")
 
     # SAVED INFORMATION
 
