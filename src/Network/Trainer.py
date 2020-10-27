@@ -287,7 +287,8 @@ class Trainer:
     def create_CAMs(self, model, dataloader_val, num_images=10):
         for i in range(num_images):
             # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
-            image = next(iter(dataloader_val))['image'][0]
+            image = next(iter(dataloader_val))['image'][0].to(device=self.main_device, dtype=torch.float32)
+            # CURRENT TEST ^ .to(device=self.main_device, dtype=torch.float32)
             # print(image.shape):
             # [3, 512, 1024]
             # self.imshow(image)
