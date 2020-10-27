@@ -14,16 +14,25 @@ from datetime import datetime
 import time
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.decomposition import IncrementalPCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, recall_score, precision_score
 from enum import Enum
+import matplotlib.pyplot as plt
 
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 LOGGER_NAME = "baselines"
 
 # Add the following code anywhere in your machine learning file
-experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
-                        project_name="dd2430", workspace="dd2430")
+experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf", project_name="dd2430", workspace="dd2430")
+
+
+class DimReduction(Enum):
+    Nothing = "nothing"
+    PCA = "pca"
+
+    def __str__(self):
+        return self.value
 
 
 class Model(Enum):
@@ -37,6 +46,10 @@ class Model(Enum):
 model_map = {
     Model.LogisticRegression.value: LogisticRegression(solver='saga', verbose=10, max_iter=3, n_jobs=3),
     Model.RandomForest.value: RandomForestClassifier()
+}
+
+dim_reduction_map = {
+    DimReduction.PCA.value: IncrementalPCA(n_components=100, batch_size=200)
 }
 
 
@@ -124,6 +137,8 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=Model, choices=list(Model), required=True)
     parser.add_argument("--width", type=int, required=True)
     parser.add_argument("--height", type=int, required=True)
+    parser.add_argument("--dim_reduction", type=DimReduction, choices=list(DimReduction), default=DimReduction.Nothing)
+    parser.add_argument("--comet_tag", type=str, required=True)
 
     args = parser.parse_args()
 
@@ -138,6 +153,9 @@ if __name__ == "__main__":
     logger.info("Reshaping binary blobs..")
     flat_binary_blobs = binary_blobs.reshape(len(binary_blobs), -1).astype(np.float16)
 
+    # Normalize image
+    flat_binary_blobs = flat_binary_blobs / flat_binary_blobs.max()
+
     # To save memory we can now del old data
     del binary_blobs
 
@@ -151,11 +169,23 @@ if __name__ == "__main__":
     del flat_binary_blobs
     del labels
 
-    logger.info(f"Fitting {args.model.value}..")
-
     # Sets experiment name in comet ui
     experiment.set_name(args.model.value)
+    experiment.add_tag(args.comet_tag)
 
+    logger.info(f"Train size: {flat_train_binary_blobs.shape}")
+
+    dim_reduction = None
+    if args.dim_reduction != DimReduction.Nothing:
+        dim_reduction = dim_reduction_map[args.dim_reduction.value]
+
+        logger.info(f"Fitting {args.dim_reduction.value}..")
+        dim_reduction.fit(flat_train_binary_blobs)
+
+        flat_train_binary_blobs = dim_reduction.transform(flat_train_binary_blobs)
+        flat_test_binary_blobs = dim_reduction.transform(flat_test_binary_blobs)
+
+    logger.info(f"Fitting {args.model.value}..")
     model = model_map[args.model.value]
     model.fit(X=flat_train_binary_blobs, y=train_labels)
 
@@ -166,6 +196,33 @@ if __name__ == "__main__":
     logger.info("Evaluating..")
     evaluate("train", predictions=train_pred, labels=train_labels)
     evaluate("test", predictions=test_pred, labels=test_labels)
+
+    if args.model == Model.LogisticRegression and args.dim_reduction == DimReduction.PCA:
+        n = 2
+        s = model.coef_[0].argsort()
+
+        top_n_smallest = s[:n]
+        top_n_largest = s[-n:]
+
+        top_n_best_eigen_papers_for_acceptance = dim_reduction.components_[top_n_largest]
+        top_n_best_eigen_papers_for_rejection = dim_reduction.components_[top_n_smallest]
+
+        shape = (args.width, args.height)
+        if args.mode == Mode.RGBBigImage:
+            shape = (args.width * 2, args.height * 4, 3)
+
+        acceptance_eigen = [paper.reshape(shape) for paper in top_n_best_eigen_papers_for_acceptance]
+        rejection_eigen = [paper.reshape(shape) for paper in top_n_best_eigen_papers_for_rejection]
+
+        # Make them into images
+        acceptance_eigen = [(paper - paper.min()) / paper.max() for paper in acceptance_eigen]
+        rejection_eigen = [(paper - paper.min()) / paper.max() for paper in rejection_eigen]
+
+        for acceptance in acceptance_eigen:
+            experiment.log_image(acceptance, name="acceptance eigen paper")
+
+        for acceptance in acceptance_eigen:
+            experiment.log_image(acceptance, name="rejection eigen paper")
 
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
