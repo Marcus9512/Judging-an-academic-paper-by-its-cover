@@ -243,8 +243,9 @@ class Trainer:
 
     def create_CAM(self, model, image):
         model.eval()
-        # model.to(self.main_device)            # <-doesn't work, same error: "Expected device type cuda but got device type cpu"
-        model.gpu()
+        # model.to(self.main_device)            # <- doesn't work, same error: "Expected device type cuda but got device type cpu"
+        # model.gpu()                           # <- resnet has no attribute gpu
+        # Det är någonting med image.gpu() /image.to(self.main_device) som ska ske, wonky.
 
         # setup hook to get last convolutional layer
         final_layer = model._modules.get('layer4')
