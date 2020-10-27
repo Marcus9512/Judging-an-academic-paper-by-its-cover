@@ -198,7 +198,7 @@ if __name__ == "__main__":
     evaluate("test", predictions=test_pred, labels=test_labels)
 
     if args.model == Model.LogisticRegression and args.dim_reduction == DimReduction.PCA:
-        n = 2
+        n = 3
         s = model.coef_[0].argsort()
 
         top_n_smallest = s[:n]
@@ -218,11 +218,11 @@ if __name__ == "__main__":
         acceptance_eigen = [(paper - paper.min()) / paper.max() for paper in acceptance_eigen]
         rejection_eigen = [(paper - paper.min()) / paper.max() for paper in rejection_eigen]
 
-        for acceptance in acceptance_eigen:
-            experiment.log_image(acceptance, name="acceptance eigen paper")
+        for i, acceptance in enumerate(reversed(acceptance_eigen), 1):
+            experiment.log_image(acceptance, name=f"{i} - acceptance")
 
-        for acceptance in acceptance_eigen:
-            experiment.log_image(acceptance, name="rejection eigen paper")
+        for i, rejection in enumerate(rejection_eigen, 1):
+            experiment.log_image(rejection, name=f"{i} - rejection")
 
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
