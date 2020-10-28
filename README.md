@@ -66,6 +66,8 @@ python3 src/baselines.py\
 - Train Baseline
     - [Random Forest](#random-forest)
     - [Logistic Regression](#logistic-regression)
+- Train Networks
+    - [Resnet](#resnet)
 
 ### Download dataset
 
@@ -210,4 +212,17 @@ python3 src/baselines.py \
     --height=256\
     --dim_reduction=${DIM_REDUCTION}\
     --comet_tag=${TAG}
+```
+
+### Resnet
+
+```bash
+
+# Remove debug flag to log to comet
+
+python3 src/Network/Network_driver.py \
+    --base_path=data\
+    --dataset=rgb-bigimage\
+    --epochs=1\
+    --debug
 ```

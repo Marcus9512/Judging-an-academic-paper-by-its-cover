@@ -3,23 +3,19 @@ import torch
 import torch.nn as nn
 import torch.optim as opt
 import torch.utils.data as ut
-import torch.utils.tensorboard as tb
 
 from sklearn.metrics import accuracy_score, recall_score, precision_score
 
 from datetime import datetime
 from src.Data_processing.Paper_dataset import *
-
-
+from tqdm import tqdm
 
 EXPERIMENT_LAUNCH_TIME = datetime.now()
-# Add the following code anywhere in your machine learning file
-experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
-                        project_name="dd2430", workspace="dd2430")
 
 class Trainer:
 
-    def __init__(self, dataset, logger, dataset_type, network_type, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25):
+    def __init__(self, dataset, logger, dataset_type, network_type, use_gpu=True, data_to_train=0.7, data_to_test=0.1,
+                 data_to_eval=0.2, log_to_comet=True):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
@@ -34,9 +30,15 @@ class Trainer:
         self.logger = logger
         self.main_device = self.get_main_device(use_gpu)
 
-        experiment.set_name(network_type.value)
-        experiment.add_tag(dataset_type.value)
-        experiment.add_tag(network_type.value)
+        self.log_to_comet = log_to_comet
+
+        if log_to_comet:
+            self.experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
+                                         project_name="dd2430", workspace="dd2430")
+
+            self.experiment.set_name(network_type.value)
+            self.experiment.add_tag(dataset_type.value)
+            self.experiment.add_tag(network_type.value)
 
     def get_main_device(self, use_gpu):
         '''
@@ -72,15 +74,13 @@ class Trainer:
             print("Could not find pycuda and thus not show amazing stats about youre GPU, have you installed CUDA?")
             pass
 
-    def train(self, model, batch_size, learn_rate, learn_decay, learn_momentum, epochs, image_type):
+    def train(self, model, batch_size, learn_rate, epochs, image_type):
 
         '''
         Performs a train and test cycle at the given model
         :param model: a trainable pytorch model
         :param batch_size: wanted size of each batch
         :param learn_rate: wanted learning rate
-        :param learn_decay: wanted learn decay
-        :param learn_momentum: wanted learn momentum
         :param epochs: number of epochs
         :return:
         '''
@@ -89,10 +89,8 @@ class Trainer:
         self.logger.info(f"\t Epochs \t{epochs}")
         self.logger.info(f"\t Batch \t\t{batch_size}")
         self.logger.info(f"\t Learn rate \t{learn_rate}")
-        self.logger.info(f"\t Momentum \t{learn_momentum}")
-        self.logger.info(f"\t Decay \t\t{learn_decay}")
 
-        #assign model to main device
+        # assign model to main device
         model.to(self.main_device)
 
         batch_train = self.dataset
@@ -111,24 +109,34 @@ class Trainer:
         # split data to train, validation and test.
         batch_train, batch_val, batch_test = random_split(batch_train, [to_train, to_val, to_test])
 
-        dataloader_train = ut.DataLoader(batch_train, batch_size=batch_size, shuffle=True, pin_memory=True)
-        dataloader_val = ut.DataLoader(batch_val, batch_size=batch_size, shuffle=True, pin_memory=True)
-        dataloader_test = ut.DataLoader(batch_test, batch_size=batch_size, shuffle=True, pin_memory=True)
+        dataloader_train = ut.DataLoader(batch_train,
+                                         batch_size=batch_size,
+                                         shuffle=True,
+                                         pin_memory=True)
+        dataloader_val = ut.DataLoader(batch_val,
+                                       batch_size=batch_size,
+                                       shuffle=True,
+                                       pin_memory=True)
+        dataloader_test = ut.DataLoader(batch_test,
+                                        batch_size=batch_size,
+                                        shuffle=True,
+                                        pin_memory=True)
 
         self.logger.info(f"\t Size of Traindata: \t{len(dataloader_train) * batch_size}")
         self.logger.info(f"\t Size of Validata: \t{len(dataloader_val) * batch_size}")
         self.logger.info(f"\t Size of Testdata: \t{len(dataloader_test) * batch_size}")
 
-        summary = tb.SummaryWriter()
-
-        #Train model
-        model = self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
-                                      epochs, learn_rate, learn_decay, learn_momentum, image_type)
-        #Test model
-        self.test_model(model, dataloader_test)
-
-        summary.flush()
-        summary.close()
+        # Train model
+        model = self.train_and_evaluate_model(model,
+                                              dataloader_train,
+                                              dataloader_val,
+                                              epochs,
+                                              learn_rate,
+                                              image_type=image_type)
+        # Test model
+        self.test_model(model, dataloader_train, prefix="train")
+        self.test_model(model, dataloader_val, prefix="validation")
+        self.test_model(model, dataloader_test, prefix="test")
 
     def save_model(self, model, image_type):
         path = "saved_nets"
@@ -136,15 +144,19 @@ class Trainer:
             os.mkdir(path)
         t = datetime.now()
         t = t.strftime("%d-%m-%Y-%H-%M-%S")
-        path = path + "/"+image_type+"-"+t
+        path = path + "/" + image_type + "-" + t
         torch.save(model.state_dict(), path)
 
-    def train_and_evaluate_model(self, model, dataloader_train, dataloader_val, summary,
-                                 epochs, learn_rate, learn_decay, learn_momentum, image_type):
-
+    def train_and_evaluate_model(self,
+                                 model,
+                                 dataloader_train,
+                                 dataloader_val,
+                                 epochs,
+                                 learn_rate,
+                                 image_type):
 
         # select optimizer type, current is SGD
-        optimizer = opt.SGD(model.parameters(), lr=learn_rate, weight_decay=learn_decay, momentum=learn_momentum)
+        optimizer = opt.Adam(model.parameters(), lr=learn_rate)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
@@ -152,7 +164,7 @@ class Trainer:
 
             self.logger.info(f"Epoch: {e} of: {epochs}")
 
-            #Switch between training and validation
+            # Switch between training and validation
             for session in ["training", "validation"]:
 
                 if session == "training":
@@ -164,52 +176,50 @@ class Trainer:
 
                 total_loss = 0
                 elements = 0
+                with tqdm(desc=f"session: {session}", total=len(current)) as progress_bar:
+                    for _, data in enumerate(current):
+                        batch = data["image"]
+                        label = data["label"]
+                        batch = batch.to(device=self.main_device, dtype=torch.float32)
+                        label = label.to(device=self.main_device, dtype=torch.float32)
 
-                for _, data in enumerate(current):
-                    batch = data["image"]
-                    label = data["label"]
-                    batch = batch.to(device=self.main_device, dtype=torch.float32)
-                    label = label.to(device=self.main_device, dtype=torch.float32)
-
-                    if session == "training":
-                        optimizer.zero_grad()
-                        out = model(batch)
-                        loss = evaluation(out, label)
-                    else:
-                        with torch.no_grad():
+                        if session == "training":
+                            optimizer.zero_grad()
                             out = model(batch)
                             loss = evaluation(out, label)
+                        else:
+                            with torch.no_grad():
+                                out = model(batch)
+                                loss = evaluation(out, label)
 
-                    total_loss += loss.item()
+                        total_loss += loss.item()
 
-                    if session == "training":
-                        loss.backward()
-                        optimizer.step()
+                        if session == "training":
+                            loss.backward()
+                            optimizer.step()
 
-                    if (elements % 1000 == 0):
-                        self.logger.info(f"{session} img: {elements}")
-
-                    elements += label.size(0)
+                        elements += label.size(0)
+                        progress_bar.update()
 
                 total_loss /= elements
                 self.logger.info(f"{session} loss: {total_loss}")
-                summary.add_scalar('Loss/' + session, total_loss, e)
+
                 # Log to comet
-                experiment.log_metric(f"train {session} - Loss", total_loss)
+                if self.log_to_comet:
+                    self.experiment.log_metric(f"{session} - Loss", total_loss)
 
-
-        self.save_model(model, image_type)
+            self.save_model(model, image_type)
         return model
 
-    def test_from_file(self, model_path, model, test_dataloder):
+    def test_from_file(self, model_path, model, dataloder, prefix: str):
         model.load_state_dict(torch.load(model_path))
-        self.test_model(model=model, test_dataloder=test_dataloder)
+        self.test_model(model=model, dataloader=dataloder, prefix=prefix)
 
-    def test_model(self, model, test_dataloder, print_res=True):
+    def test_model(self, model, dataloader, prefix: str, print_res=False):
 
         correct = 0
         total = 0
-        len_test = len(test_dataloder)
+        len_test = len(dataloader)
 
         self.logger.info(f"------Test--------")
         self.logger.info(f"Test, number of samples: {len_test}")
@@ -218,7 +228,7 @@ class Trainer:
         preds = np.array([])
         true_pos = np.array([])
 
-        for i in test_dataloder:
+        for i in dataloader:
 
             test = i["image"]
             label = i["label"]
@@ -245,79 +255,17 @@ class Trainer:
                         self.logger.info(
                             f"Output from network, predicted: {pred}, label: {label[element][0]}, out: {out[element][0]}, "
                             f"correct: {found}, total correct: {correct}, total: {total}")
-        accuracy=(correct/total)
-        self.logger.info(f"Accuracy: {accuracy*100}%")
-        experiment.log_metric(f"test - accuracy", accuracy)
 
-        self.logger.info(f"True_pos {true_pos}")
-        self.logger.info(f"Preds {preds}")
-
+        accuracy = accuracy_score(y_true=true_pos, y_pred=preds)
         recall = recall_score(y_true=true_pos, y_pred=preds)
         precision = precision_score(y_true=true_pos, y_pred=preds)
 
-        self.logger.info(f"test -- recall: {recall} -- precision: {precision} ")
+        self.logger.info(f"Accuracy: {accuracy}%")
+        self.logger.info(f"Recall: {recall}")
+        self.logger.info(f"Precision: {precision}%")
 
         # Log to comet
-        experiment.log_metric(f"test - recall", recall)
-        experiment.log_metric(f"test - precision", precision)
-
-'''
- # Code graveyard
- #TODO Refactor to only have one loop for both validation and training
-        for e in range(epochs):
-            self.logger.info(f"Epoch: {e} of: {epochs}")
-            loss_training = 0
-
-            # Training
-            model.train()
-            pos = 0
-            for i in dataloader_train:
-                train = i["image"]
-                label = i["label"]
-
-                # reset gradients
-                optimizer.zero_grad()
-                train = train.to(device=self.main_device, dtype=torch.float32)
-                out = model(train)
-
-                label = label.to(device=self.main_device, dtype=torch.float32)
-
-                loss = evaluation(out, label)
-                loss.backward()
-                optimizer.step()
-
-                loss_training += loss.item()
-                pos += 1
-
-            loss_training /= len_t
-            loss_val = 0
-
-            # Validation
-            model.eval()
-            pos = 0
-            for j in dataloader_val:
-                val = j["image"]
-                label_val = j["label"]
-                val = val.to(device=self.main_device, dtype=torch.float32)
-
-                with torch.no_grad():
-                    out = model(val)
-
-                    label_val = label_val.to(device=self.main_device, dtype=torch.float32)
-
-                    loss = evaluation(out, label_val)
-                    loss_val += loss.item()
-
-                    pos += 1
-
-            loss_val /= len_v
-
-            self.logger.info(f"Training loss: {loss_training} Validation loss: {loss_val}")
-
-            summary.add_scalar('Loss/train', loss_training, e)
-            summary.add_scalar('Loss/val', loss_val, e)
-            
-            
-            
-    
-'''
+        if self.log_to_comet:
+            self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
+            self.experiment.log_metric(f"{prefix} - recall", recall)
+            self.experiment.log_metric(f"{prefix} - precision", precision)
