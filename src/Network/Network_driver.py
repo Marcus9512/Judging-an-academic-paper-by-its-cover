@@ -94,7 +94,6 @@ if __name__ == "__main__":
     network_type = Network_type.Resnet
     model = get_model(args.dataset, Network_type.Resnet)
 
-    run_name = args.name + "_"+convert_mode_to_str(args.dataset)
     timestamp = time.time()
     trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger,
                       network_type=network_type, dataset_type=args.dataset)
