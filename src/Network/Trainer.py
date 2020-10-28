@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 
+
 class Trainer:
 
     def __init__(self, dataset, logger, dataset_type, network_type, use_gpu=True, data_to_train=0.7, data_to_test=0.1,
@@ -153,61 +154,71 @@ class Trainer:
                                  dataloader_val,
                                  epochs,
                                  learn_rate,
-                                 image_type):
+                                 image_type,
+                                 eval_every: int = 5):
 
         # select optimizer type, current is SGD
         optimizer = opt.Adam(model.parameters(), lr=learn_rate)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
-        for e in range(epochs):
+        i_batch = 0
+        train_loss = 0
+        with tqdm(desc="Epochs", total=epochs) as epoch_progress_bar:
+            for e in range(epochs):
+                # initialize as train
+                model.train()
+                with tqdm(desc="Train", total=len(dataloader_train)) as train_progress_bar:
+                    for _, data in enumerate(dataloader_train):
+                        i_batch += 1
 
-            self.logger.info(f"Epoch: {e} of: {epochs}")
+                        batch = data["image"].to(device=self.main_device, dtype=torch.float32)
+                        label = data["label"].to(device=self.main_device, dtype=torch.float32)
 
-            # Switch between training and validation
-            for session in ["training", "validation"]:
+                        # 'eval_every' batch we evaluate
+                        if i_batch % eval_every == 0:
+                            with tqdm(desc="Evaluation", total=len(dataloader_val)) as eval_progress_bar:
+                                # Set eval mode
+                                model.eval()
 
-                if session == "training":
-                    current = dataloader_train
-                    model.train()
-                else:
-                    current = dataloader_val
-                    model.eval()
+                                eval_loss = 0
+                                for eval_data in dataloader_val:
+                                    eval_batch = eval_data["image"].to(device=self.main_device, dtype=torch.float32)
+                                    eval_label = eval_data["label"].to(device=self.main_device, dtype=torch.float32)
 
-                total_loss = 0
-                elements = 0
-                with tqdm(desc=f"session: {session}", total=len(current)) as progress_bar:
-                    for _, data in enumerate(current):
-                        batch = data["image"]
-                        label = data["label"]
-                        batch = batch.to(device=self.main_device, dtype=torch.float32)
-                        label = label.to(device=self.main_device, dtype=torch.float32)
+                                    with torch.no_grad():
+                                        out = model(eval_batch)
+                                        loss = evaluation(out, eval_label)
 
-                        if session == "training":
-                            optimizer.zero_grad()
-                            out = model(batch)
-                            loss = evaluation(out, label)
-                        else:
-                            with torch.no_grad():
-                                out = model(batch)
-                                loss = evaluation(out, label)
+                                    eval_progress_bar.update()
+                                    eval_loss += loss.item()
 
-                        total_loss += loss.item()
+                                eval_progress_bar.write(f"eval - Loss: {eval_loss / eval_every}")
+                                eval_progress_bar.write(f"train - Loss: {train_loss / eval_every}")
 
-                        if session == "training":
-                            loss.backward()
-                            optimizer.step()
+                                # Log to comet
+                                if self.log_to_comet:
+                                    self.experiment.log_metric(f"eval - Loss", eval_loss / eval_every)
+                                    self.experiment.log_metric(f"train - Loss", train_loss / eval_every)
 
-                        elements += label.size(0)
-                        progress_bar.update()
+                                # Set back to train
+                                model.train()
 
-                total_loss /= elements
-                self.logger.info(f"{session} loss: {total_loss}")
+                                # Reset train_loss
+                                train_loss = 0
 
-                # Log to comet
-                if self.log_to_comet:
-                    self.experiment.log_metric(f"{session} - Loss", total_loss)
+                        optimizer.zero_grad()
+                        out = model(batch)
+                        loss = evaluation(out, label)
 
+                        train_loss += loss.item()
+
+                        loss.backward()
+                        optimizer.step()
+
+                        train_progress_bar.update()
+
+                epoch_progress_bar.update()
             self.save_model(model, image_type)
         return model
 
