@@ -223,7 +223,7 @@ class Trainer:
         def remove(self):
             self.hook.remove()
 
-    def get_CAM(self, feature_convolution, weights, class_index):
+    def get_CAM(self, feature_convolution, weights):
         _, nc, h, w = feature_convolution.shape
         cam = weights.dot(feature_convolution.reshape((nc, h*w)))
         cam = cam.reshape(h, w)
@@ -249,15 +249,22 @@ class Trainer:
         weight_softmax_params = list(model._modules.get('fc').parameters())
         weight_softmax = np.squeeze(weight_softmax_params[0].cpu().data.numpy())
 
-        # get prediction from network (probably not necessary with our implementation - should work without this)
-        class_idx = topk(pred_probabilities,1)[1].int()
-
         # create heatmap overlay
-        heatmap = self.get_CAM(activated_features.features, weight_softmax, class_idx)
+        heatmap = self.get_CAM(activated_features.features, weight_softmax)
 
         # show image + overlay
         plt.imshow(np.transpose(image.cpu().data.numpy(), (1, 2, 0)))
-        plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet');
+
+        print(prediction)
+        prediction = prediction.cpu().detach().numpy()[0]
+        print(prediction)
+        prediction = 1.0 if prediction > 0.5 else 0.0
+        if prediction == 0.0:
+            plt.title(image_type + ', prediction=0.0')
+            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet_r');
+        else:
+            plt.title(image_type + ', prediction=1.0')
+            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet');
         
         path = "saved_CAMs"
         if not os.path.exists(path):
