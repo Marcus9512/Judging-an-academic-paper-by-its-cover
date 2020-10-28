@@ -82,6 +82,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr_decay", type=float, help="learn decay", default=1e-9)
     parser.add_argument("--lr_momentum", type=float, help="learn momentum", default=1e-9)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)
+    parser.add_argument('--debug', action='store_false') # Debug mode set to false by default
+
 
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=50)
 
@@ -93,7 +95,7 @@ if __name__ == "__main__":
     pages = 8
 
     run_name = args.name + "_"+convert_mode_to_str(args.dataset)
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=run_name)
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger, run_name, debug=args.debug)
 
     model = get_model(args.dataset, Network_type.Resnet)
 
