@@ -22,6 +22,7 @@ class Network_type(Enum):
     def __str__(self):
         return self.value
 
+
 def get_resnet_model(number_of_channels):
     # pick resnet 34 and pretrained
     # Copy weights to
