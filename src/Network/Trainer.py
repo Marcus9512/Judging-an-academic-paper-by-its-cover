@@ -232,8 +232,8 @@ class Trainer:
         total = 0
         len_test = len(dataloader)
 
-        self.logger.info(f"------Test--------")
-        self.logger.info(f"Test, number of samples: {len_test}")
+        self.logger.info(f"------{prefix}--------")
+        self.logger.info(f"{prefix}, number of samples: {len_test}")
         model.eval()
 
         preds = np.array([])
