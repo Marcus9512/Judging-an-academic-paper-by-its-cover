@@ -1,4 +1,4 @@
-from comet_ml import Experiment
+# from comet_ml import Experiment
 import torch
 import torch.nn as nn
 import torch.optim as opt
@@ -20,10 +20,10 @@ import numpy as np
 import skimage.transform
 
 
-EXPERIMENT_LAUNCH_TIME = datetime.now()
+# EXPERIMENT_LAUNCH_TIME = datetime.now()
 # Add the following code anywhere in your machine learning file
-experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
-                        project_name="dd2430", workspace="dd2430")
+# experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
+#                        project_name="dd2430", workspace="dd2430")
 
 class Trainer:
 
@@ -42,7 +42,7 @@ class Trainer:
         self.logger = logger
         self.main_device = self.get_main_device(use_gpu)
 
-        experiment.set_name(name)
+        # experiment.set_name(name)
 
     def get_main_device(self, use_gpu):
         '''
@@ -128,8 +128,8 @@ class Trainer:
         summary = tb.SummaryWriter()
 
         #Train model
-        model = self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
-                                      epochs, learn_rate, learn_decay, learn_momentum, image_type)
+        # model = self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
+        #                              epochs, learn_rate, learn_decay, learn_momentum, image_type)
 
         #if not model.parameters().is_cuda:
         #    print("Marcus big dumbdumb")
@@ -235,6 +235,8 @@ class Trainer:
 
     def get_CAM(self, feature_convolution, weights, class_index):
         _, nc, h, w = feature_convolution.shape
+        print(feature_convolution.shape)
+        print(weights.shape)
         cam = weights[class_index].dot(feature_convolution.reshape((nc, h*w)))
         cam = cam.reshape(h, w)
         cam = cam - np.min(cam)
@@ -342,7 +344,7 @@ class Trainer:
                             f"correct: {found}, total correct: {correct}, total: {total}")
         accuracy=(correct/total)*100
         self.logger.info(f"Accuracy: {accuracy}%")
-        experiment.log_metric(f"test - accuracy", accuracy)
+        # experiment.log_metric(f"test - accuracy", accuracy)
 
         self.logger.info(f"True_pos {true_pos}")
         self.logger.info(f"Preds {preds}")
@@ -353,8 +355,8 @@ class Trainer:
         self.logger.info(f"test -- recall: {recall} -- precision: {precision} ")
 
         # Log to comet
-        experiment.log_metric(f"test - recall", recall)
-        experiment.log_metric(f"test - precision", precision)
+        # experiment.log_metric(f"test - recall", recall)
+        # experiment.log_metric(f"test - precision", precision)
 
 '''
  # Code graveyard
