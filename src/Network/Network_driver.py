@@ -9,7 +9,6 @@ import os
 # Fixes python path for some 
 sys.path.append(os.getcwd())
 
-from src.Tools.Tools import *
 from src.Network.Trainer import *
 from src.Tools.open_review_dataset import *
 
