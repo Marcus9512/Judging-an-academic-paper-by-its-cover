@@ -95,7 +95,7 @@ if __name__ == "__main__":
     pages = 8
 
     run_name = args.name + "_"+convert_mode_to_str(args.dataset)
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, name=run_name, debug=args.debug)
+    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger, name, debug=args.debug)
 
     model = get_model(args.dataset, Network_type.Resnet)
 
