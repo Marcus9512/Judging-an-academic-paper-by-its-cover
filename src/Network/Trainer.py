@@ -1,4 +1,4 @@
-from comet_ml import Experiment
+# from comet_ml import Experiment
 import torch
 import torch.nn as nn
 import torch.optim as opt
@@ -20,10 +20,9 @@ import numpy as np
 import skimage.transform
 
 
-EXPERIMENT_LAUNCH_TIME = datetime.now()
+# EXPERIMENT_LAUNCH_TIME = datetime.now()
 # Add the following code anywhere in your machine learning file
-                    project_name="dd2430", workspace="dd2430")
-
+                    
 class Trainer:
 
     def __init__(self, dataset, logger, name, use_gpu=True, data_to_train=0.5, data_to_test=0.25, data_to_eval=0.25, debug=False):
@@ -43,6 +42,7 @@ class Trainer:
 
         if not debug:
             experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
+                    project_name="dd2430", workspace="dd2430")
             experiment.set_name(name)
 
     def get_main_device(self, use_gpu):
@@ -130,13 +130,10 @@ class Trainer:
 
         #Train model
         model = self.train_and_evaluate_model(model, dataloader_train, dataloader_val, summary,
-                                      epochs, learn_rate, learn_decay, learn_momentum, image_type)
-
-        #if not model.parameters().is_cuda:
-        #    print("Marcus big dumbdumb")
+                                    epochs, learn_rate, learn_decay, learn_momentum, image_type)
 
         # Create CAMs
-        self.create_CAMs(model, dataloader_val, num_images=1)
+        self.create_CAMs(model, dataloader_val, image_type)
 
         #Test model
         self.test_model(model, dataloader_test)
@@ -215,13 +212,6 @@ class Trainer:
         self.save_model(model, image_type)
         return model
 
-    def imshow(self, img):
-        import matplotlib.pyplot as plt
-        #img = img / 2 + 0.5  # unnormalize
-        npimg = img.numpy()
-        plt.imshow(np.transpose(npimg, (1, 2, 0)))
-        plt.show()
-
     # CAM implementation stuff:
     class save_features():
         features = None
@@ -236,17 +226,15 @@ class Trainer:
 
     def get_CAM(self, feature_convolution, weights, class_index):
         _, nc, h, w = feature_convolution.shape
-        cam = weights[class_index].dot(feature_convolution.reshape((nc, h*w)))
+        cam = weights.dot(feature_convolution.reshape((nc, h*w)))
         cam = cam.reshape(h, w)
         cam = cam - np.min(cam)
         cam_img = cam / np.max(cam)
         return [cam_img]
 
-    def create_CAM(self, model, image):
+
+    def create_CAM(self, model, image, image_type):
         model.eval()
-        # model.to(self.main_device)            # <- doesn't work, same error: "Expected device type cuda but got device type cpu"
-        # model.gpu()                           # <- resnet has no attribute gpu
-        # Det är någonting med image.gpu() /image.to(self.main_device) som ska ske, wonky.
 
         # setup hook to get last convolutional layer
         final_layer = model._modules.get('layer4')
@@ -254,7 +242,6 @@ class Trainer:
 
         # make prediction
         image_pred = image.reshape(1, 3, 512, 1024)
-        # type CPU vs GPU?
         prediction = model(image_pred)
         pred_probabilities = F.softmax(prediction).data.squeeze()
         activated_features.remove()
@@ -270,8 +257,8 @@ class Trainer:
         heatmap = self.get_CAM(activated_features.features, weight_softmax, class_idx)
 
         # show image + overlay
-        self.imshow(image)
-        plt.imshow(skimage.transform.resize(heatmap[0], tensor.shape[1:3]), alpha=0.5, cmap='jet');
+        plt.imshow(np.transpose(image.cpu().data.numpy(), (1, 2, 0)))
+        plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet');
         
         path = "saved_CAMs"
         if not os.path.exists(path):
@@ -284,18 +271,13 @@ class Trainer:
         plt.close()
 
 
-    # TODO: set this to random
-    def create_CAMs(self, model, dataloader_val, num_images=10):
+    def create_CAMs(self, model, dataloader_val, image_type, num_images=10):
         for i in range(num_images):
             # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
             image = next(iter(dataloader_val))['image'][0].to(device=self.main_device, dtype=torch.float32)
-            # CURRENT TEST ^ .to(device=self.main_device, dtype=torch.float32)
-            # print(image.shape):
-            # [3, 512, 1024]
-            # self.imshow(image)
-            # ^works!
 
-            self.create_CAM(model, image)
+            self.create_CAM(model, image, image_type)
+
 
     def test_from_file(self, model_path, model, test_dataloder):
         model.load_state_dict(torch.load(model_path))
