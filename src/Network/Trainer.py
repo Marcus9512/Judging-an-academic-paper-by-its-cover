@@ -35,7 +35,10 @@ class Trainer:
 
         if log_to_comet:
             self.experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
-                                         project_name="dd2430", workspace="dd2430")
+                                         project_name="dd2430", workspace="dd2430",
+                                         auto_metric_logging=False,
+                                         auto_param_logging=False,
+                                         auto_output_logging=False)
 
             self.experiment.set_name(network_type.value)
             self.experiment.add_tag(dataset_type.value)
@@ -155,7 +158,7 @@ class Trainer:
                                  epochs,
                                  learn_rate,
                                  image_type,
-                                 eval_every: int = 5):
+                                 eval_every: int = 50):
 
         # select optimizer type, current is SGD
         optimizer = opt.Adam(model.parameters(), lr=learn_rate)
@@ -193,12 +196,12 @@ class Trainer:
                                     eval_progress_bar.update()
                                     eval_loss += loss.item()
 
-                                eval_progress_bar.write(f"eval - Loss: {eval_loss / eval_every}")
+                                eval_progress_bar.write(f"eval - Loss: {eval_loss / len(dataloader_val)}")
                                 eval_progress_bar.write(f"train - Loss: {train_loss / eval_every}")
 
                                 # Log to comet
                                 if self.log_to_comet:
-                                    self.experiment.log_metric(f"eval - Loss", eval_loss / eval_every)
+                                    self.experiment.log_metric(f"eval - Loss", eval_loss / len(dataloader_val))
                                     self.experiment.log_metric(f"train - Loss", train_loss / eval_every)
 
                                 # Set back to train
