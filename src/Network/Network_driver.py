@@ -32,7 +32,9 @@ def sanity_check_paper_dataset(dataset_path):
 
 
 def get_resnet_model(number_of_channels):
-    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=False, num_classes=1)
+    #pick resnet 34 and pretrained
+    #Copy weights to
+    model = torch.hub.load('pytorch/vision:v0.6.0', 'resnet18', pretrained=True, num_classes=1)
     # modifying the input layer to accept 8 channels input:
     model.conv1 = nn.Conv2d(number_of_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
     return model
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
     parser.add_argument("--dataset", type=Mode, help="bigimage, rgbchannels or gschannels", required=True)
 
-    parser.add_argument("--lr", type=float, help="learn rate", default=0.01)
+    parser.add_argument("--lr", type=float, help="learn rate", default=0.0001)
     parser.add_argument("--lr_decay", type=float, help="learn decay", default=1e-9)
     parser.add_argument("--lr_momentum", type=float, help="learn momentum", default=1e-9)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)

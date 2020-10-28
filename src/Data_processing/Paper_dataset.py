@@ -22,14 +22,18 @@ class Paper_dataset(Dataset):
         self.data_path = data_path
         path_meta = os.path.join(data_path,"meta.csv")
 
+        self.four_dim = False
+
         if dataset_type == Mode.RGBFrontPage:
             self.dataset_type = "-rgb-frontpage-"
         elif dataset_type == Mode.GSFrontPage:
             self.dataset_type = "-gs-frontpage-"
         elif dataset_type == Mode.GSChannels:
             self.dataset_type = "-gs-channels-"
+            self.four_dim = True
         elif dataset_type == Mode.RGBChannels:
             self.dataset_type = "-rgb-channels-"
+            self.four_dim = True
         elif dataset_type == Mode.RGBBigImage:
             self.dataset_type = "-rgb-bigimage-"
         elif dataset_type == Mode.GSBigImage:
@@ -101,7 +105,10 @@ class Paper_dataset(Dataset):
 
 
         #This line might be needed by pytorch to switch place for the channel data
-        image = image.transpose((2, 0, 1))
+        if not self.four_dim:
+            image = image.transpose((2, 0, 1))
+        else:
+            image = image.transpose((0,3, 1, 2))
 
         ret["image"] = image
         if data["accepted"]:
