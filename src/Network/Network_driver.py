@@ -22,23 +22,6 @@ class Network_type(Enum):
     def __str__(self):
         return self.value
 
-
-def sanity_check_paper_dataset(dataset_path):
-    '''
-    Sanity check for the Paper_dataset class
-    :param dataset_path:
-    :return:
-    '''
-    dataset = Paper_dataset(dataset_path, print_csv=True)
-
-    for i in range(0, dataset.len):
-        info = dataset[i]
-        print(info["title"])
-
-    info = dataset[2]
-    print_image_from_array(info["image"] * 255)
-
-
 def get_resnet_model(number_of_channels):
     # pick resnet 34 and pretrained
     # Copy weights to
