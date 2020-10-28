@@ -63,6 +63,9 @@ python3 src/baselines.py\
     - [Inspect RGB BigImage](#inspect-rgb-big-image)
     - [Inspect RGB Channels](#inspect-rgb-channels)
     - [Inspect RGB Frontpage](#inspect-rgb-frontpage)
+- Train Baseline
+    - [Random Forest](#random-forest)
+    - [Logistic Regression](#logistic-regression)
 
 ### Download dataset
 
@@ -175,4 +178,36 @@ python3 src/Tools/open_review_dataset.py \
   --mode=rgb-frontpage
 
 xdg-open $IMAGE_PATH.png
+```
+
+### Random Forest
+
+```bash
+python3 src/baselines.py \
+    --path_to_meta=data/meta.csv\
+    --model=random-forest\
+    --mode=rgb-bigimage\
+    --width=256\
+    --height=256
+```
+
+
+### Logistic Regression
+
+```bash
+# Pick one
+DIM_REDUCTION="nothing"
+DIM_REDUCTION="pca"
+
+#tag describing experiment
+TAG=...
+
+python3 src/baselines.py \
+    --path_to_meta=data/meta.csv\
+    --model=logistic-regression\
+    --mode=rgb-bigimage\
+    --width=256\
+    --height=256\
+    --dim_reduction=${DIM_REDUCTION}\
+    --comet_tag=${TAG}
 ```
