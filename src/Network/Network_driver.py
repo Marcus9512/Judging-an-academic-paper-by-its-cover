@@ -59,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=50)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--create_heatmaps", action="store_true")
 
     args = parser.parse_args()
     logger.info(f"Dataset path: {args.base_path} , dataset: {args.dataset}")
@@ -68,11 +69,12 @@ if __name__ == "__main__":
     pages = 8
 
     network_type = Network_type.Resnet
+    
     model = get_model(args.dataset, Network_type.Resnet)
 
     timestamp = time.time()
     trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger,
-                      network_type=network_type, dataset_type=args.dataset, log_to_comet=not args.debug)
+                      network_type=network_type, dataset_type=args.dataset, log_to_comet=not args.debug, create_heatmaps=args.create_heatmaps)
 
     trainer.train(model=model,
                   batch_size=args.batch_size,

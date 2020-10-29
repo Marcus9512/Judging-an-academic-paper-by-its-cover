@@ -10,13 +10,22 @@ from datetime import datetime
 from src.Data_processing.Paper_dataset import *
 from tqdm import tqdm
 
+from matplotlib import pyplot as plt
+from PIL import Image
+from torchvision import models, transforms
+from torch.autograd import Variable
+from torch.nn import functional as F
+from torch import topk
+import numpy as np
+import skimage.transform
+
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 
 
 class Trainer:
 
     def __init__(self, dataset, logger, dataset_type, network_type, use_gpu=True, data_to_train=0.7, data_to_test=0.1,
-                 data_to_eval=0.2, log_to_comet=True):
+                 data_to_eval=0.2, log_to_comet=True, create_heatmaps=False):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
@@ -30,7 +39,7 @@ class Trainer:
         self.data_to_eval = data_to_eval
         self.logger = logger
         self.main_device = self.get_main_device(use_gpu)
-
+        self.create_heatmaps = create_heatmaps
         self.log_to_comet = log_to_comet
 
         if log_to_comet:
@@ -43,6 +52,7 @@ class Trainer:
             self.experiment.set_name(network_type.value)
             self.experiment.add_tag(dataset_type.value)
             self.experiment.add_tag(network_type.value)
+
 
     def get_main_device(self, use_gpu):
         '''
@@ -137,10 +147,15 @@ class Trainer:
                                               epochs,
                                               learn_rate,
                                               image_type=image_type)
+
+        if self.create_heatmaps:
+            self.create_CAMs(model, dataloader_val, image_type)
+
         # Test model
         self.test_model(model, dataloader_train, prefix="train")
         self.test_model(model, dataloader_val, prefix="validation")
         self.test_model(model, dataloader_test, prefix="test")
+
 
     def save_model(self, model, image_type):
         path = "saved_nets"
@@ -225,9 +240,86 @@ class Trainer:
             self.save_model(model, image_type)
         return model
 
-    def test_from_file(self, model_path, model, dataloder, prefix: str):
+    # CAM implementation stuff:
+    class save_features():
+        features = None
+        def __init__(self, m): 
+            self.hook = m.register_forward_hook(self.hook_fn)
+
+        def hook_fn(self, module, input, output):
+            self.features = ((output.cpu()).data).numpy()
+
+        def remove(self):
+            self.hook.remove()
+
+    def get_CAM(self, feature_convolution, weights):
+        _, nc, h, w = feature_convolution.shape
+        cam = weights.dot(feature_convolution.reshape((nc, h*w)))
+        cam = cam.reshape(h, w)
+        cam = cam - np.min(cam)
+        cam_img = cam / np.max(cam)
+        return [cam_img]
+
+
+    def create_CAM(self, model, image, image_type):
+        model.eval()
+
+        # setup hook to get last convolutional layer
+        final_layer = model._modules.get('layer4')
+        activated_features = self.save_features(final_layer)
+
+        # make prediction
+        image_pred = image.reshape(1, 3, 512, 1024)
+        prediction = model(image_pred)
+        pred_probabilities = F.softmax(prediction).data.squeeze()
+        activated_features.remove()
+
+        # get parameters to create CAM
+        weight_softmax_params = list(model._modules.get('fc').parameters())
+        weight_softmax = np.squeeze(weight_softmax_params[0].cpu().data.numpy())
+
+        # create heatmap overlay
+        heatmap = self.get_CAM(activated_features.features, weight_softmax)
+
+        # show image + overlay
+        plt.imshow(np.transpose(image.cpu().data.numpy(), (1, 2, 0)))
+
+        print(prediction)
+        prediction = prediction.cpu().detach().numpy()[0]
+        print(prediction)
+        prediction = 1.0 if prediction > 0.5 else 0.0
+        if prediction == 0.0:
+            plt.title(image_type + ', prediction=0.0')
+            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet_r');
+        else:
+            plt.title(image_type + ', prediction=1.0')
+            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet');
+        
+        if self.log_to_comet:
+            self.experiment.log_figure(figure_name=image_type + ', prediction=1.0')
+
+        path = "saved_CAMs"
+        if not os.path.exists(path):
+            os.mkdir(path)
+        t = datetime.now()
+        t = t.strftime("%d-%m-%Y-%H-%M-%S")
+        path = path + "/"+image_type+"-"+t+'.png'
+
+        plt.savefig(path)
+        plt.close()
+
+
+    def create_CAMs(self, model, dataloader_val, image_type, num_images=10):
+        for i in range(num_images):
+            # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
+            image = next(iter(dataloader_val))['image'][0].to(device=self.main_device, dtype=torch.float32)
+            self.create_CAM(model, image, image_type)
+
+
+    def test_from_file(self, model_path, model, dataloader, prefix: str):
         model.load_state_dict(torch.load(model_path))
-        self.test_model(model=model, dataloader=dataloder, prefix=prefix)
+        self.test_model(model=model, dataloader=dataloader, prefix=prefix)
+
 
     def test_model(self, model, dataloader, prefix: str, print_res=False):
 
