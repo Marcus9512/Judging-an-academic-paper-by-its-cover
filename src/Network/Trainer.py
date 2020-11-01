@@ -24,7 +24,7 @@ EXPERIMENT_LAUNCH_TIME = datetime.now()
 
 class Trainer:
 
-    def __init__(self, dataset, logger, dataset_type, network_type, use_gpu=True, data_to_train=0.7, data_to_test=0.1,
+    def __init__(self, dataset, logger, dataset_type, network_type, pretrained, use_gpu=True, data_to_train=0.7, data_to_test=0.1,
                  data_to_eval=0.2, log_to_comet=True, create_heatmaps=False):
         '''
         :param data_path: path to the data folder
@@ -52,6 +52,9 @@ class Trainer:
             self.experiment.set_name(network_type.value)
             self.experiment.add_tag(dataset_type.value)
             self.experiment.add_tag(network_type.value)
+
+            if pretrained:
+                self.experiment.add_tag("pre-trained")
 
 
     def get_main_device(self, use_gpu):
