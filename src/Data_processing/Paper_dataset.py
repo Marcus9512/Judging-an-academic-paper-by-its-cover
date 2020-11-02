@@ -3,6 +3,7 @@ from os import path
 from src.Tools.open_review_dataset import *
 
 import pandas as pd
+import torchvision
 
 
 class Paper_dataset(Dataset):
@@ -49,6 +50,10 @@ class Paper_dataset(Dataset):
         self.res = str(width) + "-" + str(height)
         self.csv_data, self.len = self.create_usable_csv(path_meta)
 
+        self.transform = torchvision.transforms.Compose(
+            [torchvision.transforms.functional.to_tensor,
+             torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+
         if print_csv:
             print(self.csv_data.index)
             print(self.csv_data)
@@ -80,9 +85,9 @@ class Paper_dataset(Dataset):
             if not path.exists(p):
                 remove_element.append(i)
 
-        remove = len(remove_element)
+        #remove = len(remove_element)
         csv = csv.drop(index=remove_element)
-        length2 = len(csv.index)
+        #length2 = len(csv.index)
 
 
         if self.train:
@@ -113,11 +118,20 @@ class Paper_dataset(Dataset):
 
         image = image / 255
 
+        #print(image)
+        #print(image.shape)
+        #print(type(image))
+        image = self.transform(image)
+        #print(image)
+        #print(image.shape)
+        #print(type(image))
+
+
         # This line might be needed by pytorch to switch place for the channel data
-        if not self.four_dim:
-            image = image.transpose((2, 0, 1))
-        else:
-            image = image.transpose((0, 3, 1, 2))
+        #if not self.four_dim:
+        #    image = image.transpose((2, 0, 1))
+        #else:
+        #    image = image.transpose((0, 3, 1, 2))
 
         ret["image"] = image
         if data["accepted"]:
