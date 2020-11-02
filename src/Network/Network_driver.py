@@ -38,7 +38,6 @@ def get_resnet_model(number_of_channels, model, pretrain=True):
     else:
         model = torch.hub.load('pytorch/vision:v0.6.0', model.value, pretrained=False, num_classes=1)
 
-
     # modifying the input layer to accept 8 channels input:
     model.conv1 = nn.Conv2d(number_of_channels, 64, kernel_size=7, stride=2, padding=3, bias=True)
     return model
@@ -59,7 +58,6 @@ def get_model(dataset_type, model, pretrain):
         channels = 3
 
     return get_resnet_model(channels, model, pretrain)
-
 
 
 if __name__ == "__main__":
@@ -86,12 +84,21 @@ if __name__ == "__main__":
     network_type = Network_type.Resnet34
 
     logger.info(f"Using {network_type}")
-    
+
     model = get_model(args.dataset, network_type, args.pretrain)
 
+    train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
+    test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
+
     timestamp = time.time()
-    trainer = Trainer(Paper_dataset(args.base_path, args.dataset, width, height), logger=logger, pretrained=args.pretrain,
-                      network_type=network_type, dataset_type=args.dataset, log_to_comet=not args.debug, create_heatmaps=args.create_heatmaps)
+    trainer = Trainer(train_dataset,
+                      test_dataset,
+                      logger=logger,
+                      pretrained=args.pretrain,
+                      network_type=network_type,
+                      dataset_type=args.dataset,
+                      log_to_comet=not args.debug,
+                      create_heatmaps=args.create_heatmaps)
 
     trainer.train(model=model,
                   batch_size=args.batch_size,
