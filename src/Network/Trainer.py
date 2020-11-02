@@ -24,7 +24,9 @@ EXPERIMENT_LAUNCH_TIME = datetime.now()
 
 class Trainer:
 
-    def __init__(self, dataset, logger, dataset_type, network_type, pretrained, use_gpu=True, data_to_train=0.7, data_to_test=0.1,
+    def __init__(self, train_dataset, test_dataset, logger, dataset_type, network_type, pretrained, use_gpu=True,
+                 data_to_train=0.7,
+                 data_to_test=0.1,
                  data_to_eval=0.2, log_to_comet=True, create_heatmaps=False):
         '''
         :param data_path: path to the data folder
@@ -33,7 +35,9 @@ class Trainer:
         :param data_to_test: percent of data to test
         :param data_to_eval: percent of data to eval
         '''
-        self.dataset = dataset
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
+
         self.data_to_train = data_to_train
         self.data_to_test = data_to_test
         self.data_to_eval = data_to_eval
@@ -55,7 +59,6 @@ class Trainer:
 
             if pretrained:
                 self.experiment.add_tag("pre-trained")
-
 
     def get_main_device(self, use_gpu):
         '''
@@ -110,21 +113,17 @@ class Trainer:
         # assign model to main device
         model.to(self.main_device)
 
-        batch_train = self.dataset
-        dataset_length = batch_train.len
-
         # convert to int
-        to_train = int(dataset_length * self.data_to_train)
-        to_test = int(dataset_length * self.data_to_test)
-        to_val = int(dataset_length * self.data_to_eval)
+        to_train = int(self.train_dataset.len * self.data_to_train)
+        to_val = int(self.train_dataset.len * self.data_to_eval)
 
         # make sure that the sum of data is not more than available data
-        data_sum = to_train + to_test + to_val
-        if data_sum < dataset_length:
-            to_val += dataset_length - data_sum
+        data_sum = to_train + to_val
+        if data_sum < self.train_dataset.len:
+            to_val += self.train_dataset.len - data_sum
 
         # split data to train, validation and test.
-        batch_train, batch_val, batch_test = random_split(batch_train, [to_train, to_val, to_test])
+        batch_train, batch_val, batch_test = random_split(self.train_dataset, [to_train, to_val])
 
         dataloader_train = ut.DataLoader(batch_train,
                                          batch_size=batch_size,
@@ -134,7 +133,7 @@ class Trainer:
                                        batch_size=batch_size,
                                        shuffle=True,
                                        pin_memory=True)
-        dataloader_test = ut.DataLoader(batch_test,
+        dataloader_test = ut.DataLoader(self.test_dataset,
                                         batch_size=batch_size,
                                         shuffle=True,
                                         pin_memory=True)
@@ -158,7 +157,6 @@ class Trainer:
         self.test_model(model, dataloader_train, prefix="train")
         self.test_model(model, dataloader_val, prefix="validation")
         self.test_model(model, dataloader_test, prefix="test")
-
 
     def save_model(self, model, image_type):
         path = "saved_nets"
@@ -246,7 +244,8 @@ class Trainer:
     # CAM implementation stuff:
     class save_features():
         features = None
-        def __init__(self, m): 
+
+        def __init__(self, m):
             self.hook = m.register_forward_hook(self.hook_fn)
 
         def hook_fn(self, module, input, output):
@@ -257,12 +256,11 @@ class Trainer:
 
     def get_CAM(self, feature_convolution, weights):
         _, nc, h, w = feature_convolution.shape
-        cam = weights.dot(feature_convolution.reshape((nc, h*w)))
+        cam = weights.dot(feature_convolution.reshape((nc, h * w)))
         cam = cam.reshape(h, w)
         cam = cam - np.min(cam)
         cam_img = cam / np.max(cam)
         return [cam_img]
-
 
     def create_CAM(self, model, image, image_type):
         model.eval()
@@ -297,7 +295,7 @@ class Trainer:
         else:
             plt.title(image_type + ', prediction=1.0')
             plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet');
-        
+
         if self.log_to_comet:
             self.experiment.log_figure(figure_name=image_type + ', prediction=1.0')
 
@@ -306,11 +304,10 @@ class Trainer:
             os.mkdir(path)
         t = datetime.now()
         t = t.strftime("%d-%m-%Y-%H-%M-%S")
-        path = path + "/"+image_type+"-"+t+'.png'
+        path = path + "/" + image_type + "-" + t + '.png'
 
         plt.savefig(path)
         plt.close()
-
 
     def create_CAMs(self, model, dataloader_val, image_type, num_images=10):
         for i in range(num_images):
@@ -318,11 +315,9 @@ class Trainer:
             image = next(iter(dataloader_val))['image'][0].to(device=self.main_device, dtype=torch.float32)
             self.create_CAM(model, image, image_type)
 
-
     def test_from_file(self, model_path, model, dataloader, prefix: str):
         model.load_state_dict(torch.load(model_path))
         self.test_model(model=model, dataloader=dataloader, prefix=prefix)
-
 
     def test_model(self, model, dataloader, prefix: str, print_res=False):
 
