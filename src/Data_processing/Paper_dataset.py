@@ -84,8 +84,6 @@ class Paper_dataset(Dataset):
         csv = csv.drop(index=remove_element)
         length2 = len(csv.index)
 
-        self.logger.info(f"length {length} length2 {length2} remove {remove}")
-        self.logger.info(f"Removed {remove} rows in .meta file")
 
         if self.train:
             train_condition = csv.year != 2020
@@ -95,6 +93,8 @@ class Paper_dataset(Dataset):
             test_condition = csv.year == 2020
 
             csv = csv.loc[test_condition]
+
+        self.logger.info(f"Length of CSV {len(csv)}")
 
         csv = csv.reset_index()
         return csv, len(csv.index)

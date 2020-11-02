@@ -123,7 +123,7 @@ class Trainer:
             to_val += self.train_dataset.len - data_sum
 
         # split data to train, validation and test.
-        batch_train, batch_val, batch_test = random_split(self.train_dataset, [to_train, to_val])
+        batch_train, batch_val = random_split(self.train_dataset, [to_train, to_val])
 
         dataloader_train = ut.DataLoader(batch_train,
                                          batch_size=batch_size,
