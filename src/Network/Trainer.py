@@ -26,20 +26,19 @@ class Trainer:
 
     def __init__(self, train_dataset, test_dataset, logger, dataset_type, network_type, pretrained, use_gpu=True,
                  data_to_train=0.7,
-                 data_to_test=0.1,
-                 data_to_eval=0.2, log_to_comet=True, create_heatmaps=False):
+                 data_to_eval=0.3,
+                 log_to_comet=True,
+                 create_heatmaps=False):
         '''
         :param data_path: path to the data folder
         :param use_gpu: true if the program should use GPU
         :param data_to_train: percent of data to train
-        :param data_to_test: percent of data to test
         :param data_to_eval: percent of data to eval
         '''
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
 
         self.data_to_train = data_to_train
-        self.data_to_test = data_to_test
         self.data_to_eval = data_to_eval
         self.logger = logger
         self.main_device = self.get_main_device(use_gpu)
