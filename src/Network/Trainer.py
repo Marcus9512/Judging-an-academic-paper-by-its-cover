@@ -123,7 +123,7 @@ class Trainer:
             to_val += self.train_dataset.len - data_sum
 
         # split data to train, validation and test.
-        batch_train, batch_val, batch_test = random_split(self.train_dataset, [to_train, to_val])
+        batch_train, batch_val = random_split(self.train_dataset, [to_train, to_val])
 
         dataloader_train = ut.DataLoader(batch_train,
                                          batch_size=batch_size,
@@ -154,9 +154,9 @@ class Trainer:
             self.create_CAMs(model, dataloader_val, image_type)
 
         # Test model
-        self.test_model(model, dataloader_train, prefix="train")
-        self.test_model(model, dataloader_val, prefix="validation")
-        self.test_model(model, dataloader_test, prefix="test")
+        self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
+        self.test_model(model, dataloader_val, batch_size=batch_size, prefix="validation")
+        self.test_model(model, dataloader_test, batch_size=batch_size, prefix="test")
 
     def save_model(self, model, image_type):
         path = "saved_nets"
@@ -285,9 +285,7 @@ class Trainer:
         # show image + overlay
         plt.imshow(np.transpose(image.cpu().data.numpy(), (1, 2, 0)))
 
-        print(prediction)
         prediction = prediction.cpu().detach().numpy()[0]
-        print(prediction)
         prediction = 1.0 if prediction > 0.5 else 0.0
         if prediction == 0.0:
             plt.title(image_type + ', prediction=0.0')
@@ -319,14 +317,14 @@ class Trainer:
         model.load_state_dict(torch.load(model_path))
         self.test_model(model=model, dataloader=dataloader, prefix=prefix)
 
-    def test_model(self, model, dataloader, prefix: str, print_res=False):
+    def test_model(self, model, dataloader, batch_size: int, prefix: str, print_res=False):
 
         correct = 0
         total = 0
         len_test = len(dataloader)
 
         self.logger.info(f"------{prefix}--------")
-        self.logger.info(f"{prefix}, number of samples: {len_test}")
+        self.logger.info(f"{prefix}, number of samples: {len_test * batch_size}")
         model.eval()
 
         preds = np.array([])
