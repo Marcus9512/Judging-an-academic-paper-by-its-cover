@@ -79,8 +79,6 @@ def coarse_grain_search(args,
     use_scheduler = False
     debug = True
     pretrain = True
-    curr_run = 0
-
     runs = []
     generic_run = {
         "learning_rate": args.lr,
@@ -111,7 +109,6 @@ def coarse_grain_search(args,
             run['batch_size'] = 'batch_size'
             runs.append(run)
 
-
     train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
     test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
 
@@ -124,18 +121,18 @@ def coarse_grain_search(args,
         log_to_comet=not debug,
         create_heatmaps=args.create_heatmaps)
 
-    for run in runs:
-        curr_run += 1
-        print(f"################################ Running run {run}/{len(runs)}################################")
+    for i, run in enumerate(runs):
+        print(f"################################ Running run {i}/{len(runs)}################################")
         print(f"Run {run}:", run)
         model = get_model(args.dataset, network_type, pretrain=args.pretrain, freeze_pretrain=args.freeze)
         validation_recall, validation_precision = trainer.train(model=model,
-                batch_size=args.batch_size,
-                learn_rate=lr,
-                epochs=args.epochs,
+                batch_size=run['batch_size'],
+                learn_rate=run['learning_rate'],
+                epochs=run['epochs'],
                 image_type=args.dataset.value,
+                weight_decay=run['weight_decay'],
                 use_scheduler=use_scheduler)
-        run['run'] = curr_run
+        run['run'] = i
         run['validation_recall'] = validation_recall
         run['validation_precision'] = validation_precision
         print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
