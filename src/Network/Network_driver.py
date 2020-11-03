@@ -74,7 +74,9 @@ def coarse_grain_search(args,
                         network_type,
                         learn_rate_test = True,
                         weight_decay_test = True,
-                        batch_size_test = True):
+                        batch_size_test = True,
+                        width,
+                        height):
     
     use_scheduler = False
     debug = True
@@ -131,7 +133,7 @@ def coarse_grain_search(args,
                 epochs=run['epochs'],
                 image_type=args.dataset.value,
                 weight_decay=run['weight_decay'],
-                use_scheduler=use_scheduler)
+                use_scheduler=run['use_scheduler'])
         run['run'] = i
         run['validation_recall'] = validation_recall
         run['validation_precision'] = validation_precision
