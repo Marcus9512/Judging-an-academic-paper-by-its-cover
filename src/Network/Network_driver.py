@@ -165,7 +165,7 @@ if __name__ == "__main__":
     logger.info(f"Using {network_type}")
     
     if args.coarse_grain_search:
-        self.coarse_grain_search(args, network_type)
+        coarse_grain_search(args, network_type)
     
     else: 
         model = get_model(args.dataset, network_type, args.pretrain)
