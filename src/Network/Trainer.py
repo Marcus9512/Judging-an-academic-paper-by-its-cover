@@ -353,19 +353,19 @@ class Trainer:
             prediction = 1.0 if prediction > 0.5 else 0.0
 
             if label == 0.0 and prediction == 0.0 and true_negative < num_images:
-                self.create_CAM(model, image, image_type, label, "true_negative " + true_negative)
+                self.create_CAM(model, image, image_type, label, "true_negative " + str(true_negative))
                 true_negative = true_negative + 1
 
             if label == 1.0 and prediction == 0.0 and false_negative < num_images:
-                self.create_CAM(model, image, image_type, label, "false_negative " + false_negative)
+                self.create_CAM(model, image, image_type, label, "false_negative " + str(false_negative))
                 false_negative = false_negative + 1
 
             if label == 1.0 and prediction == 1.0 and true_positive < num_images:
-                self.create_CAM(model, image, image_type, label, "true_positive " + true_positive)
+                self.create_CAM(model, image, image_type, label, "true_positive " + str(true_positive))
                 true_positive = true_positive + 1
 
             if label == 0.0 and prediction == 1.0 and false_positive < num_images:
-                self.create_CAM(model, image, image_type, label, "false_positive " + false_positive)
+                self.create_CAM(model, image, image_type, label, "false_positive " + str(false_positive))
                 false_positive = false_positive + 1
 
 
