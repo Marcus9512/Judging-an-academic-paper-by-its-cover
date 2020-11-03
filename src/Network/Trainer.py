@@ -272,7 +272,7 @@ class Trainer:
         cam_img = cam / np.max(cam)
         return [cam_img]
 
-    def create_CAM(self, model, image, image_type, label):
+    def create_CAM(self, model, image, image_type, label, title):
         model.eval()
 
         # setup hook to get last convolutional layer
@@ -312,7 +312,7 @@ class Trainer:
             os.mkdir(path)
         t = datetime.now()
         t = t.strftime("%d-%m-%Y-%H-%M-%S")
-        path = path + "/" + image_type + "-" + t + '.png'
+        path = path + "/" + title + "-" + t + '.png'
 
         plt.savefig(path)
         plt.close()
@@ -342,19 +342,19 @@ class Trainer:
             prediction = 1.0 if prediction > 0.5 else 0.0
 
             if label == 0.0 and prediction == 0.0 and true_negative < num_images:
-                self.create_CAM(model, image, image_type, label)
+                self.create_CAM(model, image, image_type, label, "true_negative " + true_negative)
                 true_negative = true_negative + 1
 
             if label == 1.0 and prediction == 0.0 and false_negative < num_images:
-                self.create_CAM(model, image, image_type, label)
+                self.create_CAM(model, image, image_type, label, "false_negative " + false_negative)
                 false_negative = false_negative + 1
 
             if label == 1.0 and prediction == 1.0 and true_positive < num_images:
-                self.create_CAM(model, image, image_type, label)
+                self.create_CAM(model, image, image_type, label, "true_positive " + true_positive)
                 true_positive = true_positive + 1
 
             if label == 0.0 and prediction == 1.0 and false_positive < num_images:
-                self.create_CAM(model, image, image_type, label)
+                self.create_CAM(model, image, image_type, label, "false_positive " + false_positive)
                 false_positive = false_positive + 1
 
 
