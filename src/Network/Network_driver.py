@@ -23,7 +23,7 @@ class Network_type(Enum):
         return self.value
 
 
-def get_resnet_model(number_of_channels, model, pretrain=True):
+def get_resnet_model(number_of_channels, model, pretrain=True, freeze_pretrain = True):
     # pick resnet 34 and pretrained
     # old resnet 18
     # Copy weights to
@@ -34,12 +34,17 @@ def get_resnet_model(number_of_channels, model, pretrain=True):
     if pretrain:
         logger.info(f"Using prertain")
         model = torch.hub.load('pytorch/vision:v0.6.0', model.value, pretrained=True)
+
+        if freeze_pretrain:
+            logger.info(f"Freezing pretrain")
+            for param in model.parameters():
+                param.requires_grad = False
         #model.fc = nn.Linear(model.fc.in_features, 1)
     else:
         model = torch.hub.load('pytorch/vision:v0.6.0', model.value, pretrained=False, num_classes=1)
 
     model.fc = nn.Sequential(
-        nn.Dropout(0.5),
+        nn.Dropout(0.8),
         nn.Linear(model.fc.in_features, 1)
     )
     # modifying the input layer to accept 8 channels input:
@@ -47,7 +52,7 @@ def get_resnet_model(number_of_channels, model, pretrain=True):
     return model
 
 
-def get_model(dataset_type, model, pretrain):
+def get_model(dataset_type, model, pretrain, freeze_pretrain):
     '''
     Return a network model
     :param model:
@@ -61,7 +66,7 @@ def get_model(dataset_type, model, pretrain):
     else:
         channels = 3
 
-    return get_resnet_model(channels, model, pretrain)
+    return get_resnet_model(channels, model, pretrain, freeze_pretrain)
 
 
 if __name__ == "__main__":
@@ -76,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=50)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--pretrain", action="store_true")
+    parser.add_argument("--freeze", action="store_true")
     parser.add_argument("--create_heatmaps", action="store_true")
 
     args = parser.parse_args()
@@ -89,7 +95,7 @@ if __name__ == "__main__":
 
     logger.info(f"Using {network_type}")
 
-    model = get_model(args.dataset, network_type, args.pretrain)
+    model = get_model(args.dataset, network_type, pretrain=args.pretrain, freeze_pretrain=args.freeze)
 
     train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
     test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
@@ -99,6 +105,7 @@ if __name__ == "__main__":
                       test_dataset,
                       logger=logger,
                       pretrained=args.pretrain,
+                      freeze=args.freeze,
                       network_type=network_type,
                       dataset_type=args.dataset,
                       log_to_comet=not args.debug,

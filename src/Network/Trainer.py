@@ -24,7 +24,7 @@ EXPERIMENT_LAUNCH_TIME = datetime.now()
 
 class Trainer:
 
-    def __init__(self, train_dataset, test_dataset, logger, dataset_type, network_type, pretrained, use_gpu=True,
+    def __init__(self, train_dataset, test_dataset, logger, dataset_type, network_type, pretrained, freeze, use_gpu=True,
                  data_to_train=0.7,
                  data_to_eval=0.3,
                  log_to_comet=True,
@@ -58,6 +58,8 @@ class Trainer:
 
             if pretrained:
                 self.experiment.add_tag("pre-trained")
+            if freeze:
+                self.experiment.add_tag("freeze")
 
     def get_main_device(self, use_gpu):
         '''
@@ -323,6 +325,9 @@ class Trainer:
 
         correct = 0
         total = 0
+        pred_acc = 0
+        pred_rej = 0
+
         len_test = len(dataloader)
 
         self.logger.info(f"------{prefix}--------")
@@ -350,6 +355,12 @@ class Trainer:
                     found = False
                     preds = np.append(preds, pred)
                     true_pos = np.append(true_pos, label[element][0])
+
+                    if pred == 1:
+                        pred_acc+=1
+                    else:
+                        pred_rej+=1
+
                     if label[element][0] == pred:
                         correct += 1
                         found = True
@@ -368,8 +379,14 @@ class Trainer:
         self.logger.info(f"Recall: {recall}")
         self.logger.info(f"Precision: {precision}%")
 
+        self.logger.info(f"Predicted accept {pred_acc / total}")
+        self.logger.info(f"Predicted reject {pred_rej / total}")
+
         # Log to comet
         if self.log_to_comet:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
+
+            self.experiment.log_metric(f"{prefix} - Predicted accept", pred_acc / total)
+            self.experiment.log_metric(f"{prefix} - Predicted reject", pred_rej / total)
