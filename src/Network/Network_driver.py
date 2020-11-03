@@ -71,7 +71,7 @@ def get_model(dataset_type, model, pretrain, freeze_pretrain):
 
 
 def coarse_grain_search(args,
-                        network_type
+                        network_type,
                         learn_rate_test = True,
                         weight_decay_test = True,
                         batch_size_test = True):
