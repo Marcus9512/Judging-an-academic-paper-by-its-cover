@@ -151,8 +151,14 @@ class Trainer:
                                               learn_rate,
                                               image_type=image_type)
 
+        # Custom dataloader to create CAMs - batch size set to 1
+        dataloader_val_cam = ut.DataLoader(batch_val,
+                                           batch_size=1,
+                                           shuffle=True,
+                                           pin_memory=True)
+
         if self.create_heatmaps:
-            self.create_CAMs(model, dataloader_val, image_type)
+            self.create_CAMs(model, dataloader_val_cam, image_type)
 
         # Test model
         self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
@@ -311,24 +317,41 @@ class Trainer:
         plt.savefig(path)
         plt.close()
 
-    def create_CAMs(self, model, dataloader_val, image_type, num_images=10):
-        positive = 0
-        negative = 0
+    def create_CAMs(self, model, dataloader_val, image_type, num_images=2):
+        true_positive = 0
+        true_negative = 0
+        false_positive = 0
+        false_negative = 0
 
-        while negative < num_images/2 or positive < num_images/2:
+        while true_negative < num_images or true_positive < num_images or false_positive < num_images or false_negative < num_images:
             # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
             data = next(iter(dataloader_val))
             image = data['image'][0].to(device=self.main_device, dtype=torch.float32)
+            
             label = data['label'][0].to(device=self.main_device, dtype=torch.float32)
             label = label.cpu().detach().numpy()[0]
 
-            if label == 0.0 and negative < num_images/2:
-                self.create_CAM(model, image, image_type, label)
-                negative = negative + 1
+            image_pred = image.reshape(1, 3, 512, 1024)
+            prediction = model(image_pred)
+            prediction = prediction.cpu().detach().numpy()[0]
+            prediction = 1.0 if prediction > 0.5 else 0.0
 
-            if label == 1.0 and positive < num_images/2:
+            if label == 0.0 and prediction == 0.0 and true_negative < num_images:
                 self.create_CAM(model, image, image_type, label)
-                positive = positive + 1
+                true_negative = true_negative + 1
+
+            if label == 1.0 and prediction == 0.0 and false_negative < num_images:
+                self.create_CAM(model, image, image_type, label)
+                false_negative = false_negative + 1
+
+            if label == 1.0 and prediction == 1.0 and true_positive < num_images:
+                self.create_CAM(model, image, image_type, label)
+                true_positive = true_positive + 1
+
+            if label == 0.0 and prediction == 1.0 and false_positive < num_images:
+                self.create_CAM(model, image, image_type, label)
+                false_positive = false_positive + 1
+
 
     def test_from_file(self, model_path, model, dataloader, prefix: str):
         model.load_state_dict(torch.load(model_path))
