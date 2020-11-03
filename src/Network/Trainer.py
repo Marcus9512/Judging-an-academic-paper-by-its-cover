@@ -45,6 +45,8 @@ class Trainer:
         self.create_heatmaps = create_heatmaps
         self.log_to_comet = log_to_comet
 
+        self.freeze = freeze
+
         if log_to_comet:
             self.experiment = Experiment(api_key="rZZFwjbEXYeYOP5J0x9VTUMuf",
                                          project_name="dd2430", workspace="dd2430",
@@ -183,8 +185,17 @@ class Trainer:
                                  image_type,
                                  eval_every: int = 50):
 
+        # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
+        params_to_update = model.parameters()
+        if self.freeze:
+            params_to_update = []
+            for name, param in model.named_parameters():
+                if param.requires_grad == True:
+                    params_to_update.append(param)
+                    print("\t", name)
+
         # select optimizer type, current is SGD
-        optimizer = opt.Adam(model.parameters(), lr=learn_rate, weight_decay=1e-6)
+        optimizer = opt.Adam(params_to_update, lr=learn_rate, weight_decay=1e-6)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
