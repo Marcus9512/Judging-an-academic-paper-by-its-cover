@@ -325,7 +325,12 @@ class Trainer:
 
         while true_negative < num_images or true_positive < num_images or false_positive < num_images or false_negative < num_images:
             # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
-            data = next(iter(dataloader_val))
+            data = next(iter(dataloader_val), None)
+
+            if data == None:
+                logger.info(f"CAM could not create 2 images of all types - returning to run tests")
+                return
+
             image = data['image'][0].to(device=self.main_device, dtype=torch.float32)
             
             label = data['label'][0].to(device=self.main_device, dtype=torch.float32)
