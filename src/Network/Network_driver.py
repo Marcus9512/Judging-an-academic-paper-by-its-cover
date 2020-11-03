@@ -69,7 +69,9 @@ def coarse_grain_search(args,
                         network_type,
                         learn_rate_test = True,
                         weight_decay_test = True,
-                        batch_size_test = True):
+                        batch_size_test = True,
+                        width,
+                        height):
     
     use_scheduler = False
     debug = True
@@ -117,8 +119,8 @@ def coarse_grain_search(args,
         create_heatmaps=args.create_heatmaps)
 
     for i, run in enumerate(runs):
-        print(f"################################ Running run {i}/{len(runs)}################################")
-        print(f"Run {run}:", run)
+        print(f"################################ Running run {i}/{len(runs)} ################################")
+        print(f"Run {i}: {run}")
         model = get_model(args.dataset, network_type, args.pretrain)
         validation_recall, validation_precision = trainer.train(model=model,
                 batch_size=run['batch_size'],
@@ -126,7 +128,7 @@ def coarse_grain_search(args,
                 epochs=run['epochs'],
                 image_type=args.dataset.value,
                 weight_decay=run['weight_decay'],
-                use_scheduler=use_scheduler)
+                use_scheduler=run['use_scheduler'])
         run['run'] = i
         run['validation_recall'] = validation_recall
         run['validation_precision'] = validation_precision
@@ -165,7 +167,7 @@ if __name__ == "__main__":
         coarse_grain_search(args, network_type)
     
     else: 
-        model = get_model(args.dataset, network_type, args.pretrain)
+        model = get_model(args.dataset, network_type, args.pretrain, width, height)
 
         train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
         test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
