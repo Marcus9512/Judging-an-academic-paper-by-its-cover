@@ -91,14 +91,14 @@ def coarse_grain_search(args,
         }
 
     if learn_rate_test:
-        learn_rates = [1e-i for i in range(4, 9)]
+        learn_rates = [10**-i for i in range(4, 9)]
         for lr in learn_rates:
             run = generic_run.copy()
             run['learning_rate'] = lr
             runs.append(run)
     
     if weight_decay_test:
-        weight_decays = [1e-i for i in range(6, 9)]
+        weight_decays = [10**-i for i in range(6, 9)]
         for weight_decay in weight_decays:
             run = generic_run.copy()
             run['weight_decay'] = weight_decay
