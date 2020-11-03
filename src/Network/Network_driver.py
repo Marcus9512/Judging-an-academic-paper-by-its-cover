@@ -67,11 +67,12 @@ def get_model(dataset_type, model, pretrain):
 
 def coarse_grain_search(args,
                         network_type,
+                        width,
+                        height,
                         learn_rate_test = True,
                         weight_decay_test = True,
-                        batch_size_test = True,
-                        width,
-                        height):
+                        batch_size_test = True
+                        ):
     
     use_scheduler = False
     debug = True
@@ -164,8 +165,7 @@ if __name__ == "__main__":
     logger.info(f"Using {network_type}")
     
     if args.coarse_grain_search:
-        coarse_grain_search(args, network_type)
-    
+        coarse_grain_search(args, network_type, width, height)
     else: 
         model = get_model(args.dataset, network_type, args.pretrain, width, height)
 
