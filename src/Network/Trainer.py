@@ -266,7 +266,7 @@ class Trainer:
         cam_img = cam / np.max(cam)
         return [cam_img]
 
-    def create_CAM(self, model, image, image_type):
+    def create_CAM(self, model, image, image_type, label):
         model.eval()
 
         # setup hook to get last convolutional layer
@@ -292,14 +292,14 @@ class Trainer:
         prediction = prediction.cpu().detach().numpy()[0]
         prediction = 1.0 if prediction > 0.5 else 0.0
         if prediction == 0.0:
-            plt.title(image_type + ', prediction=0.0')
+            plt.title(image_type + ', prediction=0.0' + ', label=' + str(label))
             plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet_r')
         else:
-            plt.title(image_type + ', prediction=1.0')
+            plt.title(image_type + ', prediction=1.0' + ', label=' + str(label))
             plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet')
 
         if self.log_to_comet:
-            self.experiment.log_figure(figure_name=image_type + ', prediction=1.0')
+            self.experiment.log_figure(figure_name=image_type + ', prediction=' + str(prediction) + ', label=' + str(label))
 
         path = "saved_CAMs"
         if not os.path.exists(path):
@@ -312,10 +312,23 @@ class Trainer:
         plt.close()
 
     def create_CAMs(self, model, dataloader_val, image_type, num_images=10):
-        for i in range(num_images):
+        positive = 0
+        negative = 0
+
+        while negative < num_images/2 or positive < num_images/2:
             # next(iter(dataloader_val)) returns a dict, 'image' is key for the images in the batch.
-            image = next(iter(dataloader_val))['image'][0].to(device=self.main_device, dtype=torch.float32)
-            self.create_CAM(model, image, image_type)
+            data = next(iter(dataloader_val))
+            image = data['image'][0].to(device=self.main_device, dtype=torch.float32)
+            label = data['label'][0].to(device=self.main_device, dtype=torch.float32)
+            label = label.cpu().detach().numpy()[0]
+
+            if label == 0.0 and negative < num_images/2:
+                self.create_CAM(model, image, image_type, label)
+                negative = negative + 1
+
+            if label == 1.0 and positive < num_images/2:
+                self.create_CAM(model, image, image_type, label)
+                positive = positive + 1
 
     def test_from_file(self, model_path, model, dataloader, prefix: str):
         model.load_state_dict(torch.load(model_path))
