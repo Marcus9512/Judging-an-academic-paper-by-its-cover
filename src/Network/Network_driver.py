@@ -167,7 +167,7 @@ if __name__ == "__main__":
     if args.coarse_grain_search:
         coarse_grain_search(args, network_type, width, height)
     else: 
-        model = get_model(args.dataset, network_type, args.pretrain, width, height)
+        model = get_model(args.dataset, network_type, args.pretrain)
 
         train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
         test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
