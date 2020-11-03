@@ -34,10 +34,14 @@ def get_resnet_model(number_of_channels, model, pretrain=True):
     if pretrain:
         logger.info(f"Using prertain")
         model = torch.hub.load('pytorch/vision:v0.6.0', model.value, pretrained=True)
-        model.fc = nn.Linear(model.fc.in_features, 1)
+        #model.fc = nn.Linear(model.fc.in_features, 1)
     else:
         model = torch.hub.load('pytorch/vision:v0.6.0', model.value, pretrained=False, num_classes=1)
 
+    model.fc = nn.Sequential(
+        nn.Dropout(0.5),
+        nn.Linear(model.fc.in_features, 1)
+    )
     # modifying the input layer to accept 8 channels input:
     model.conv1 = nn.Conv2d(number_of_channels, 64, kernel_size=7, stride=2, padding=3, bias=True)
     return model

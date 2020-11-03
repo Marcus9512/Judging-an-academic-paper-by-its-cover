@@ -176,9 +176,11 @@ class Trainer:
                                  eval_every: int = 50):
 
         # select optimizer type, current is SGD
-        optimizer = opt.Adam(model.parameters(), lr=learn_rate)
+        optimizer = opt.Adam(model.parameters(), lr=learn_rate, weight_decay=1e-6)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
+
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
 
         i_batch = 0
         train_loss = 0
@@ -233,6 +235,7 @@ class Trainer:
 
                         loss.backward()
                         optimizer.step()
+                        scheduler.step()
 
                         train_progress_bar.update()
 
@@ -288,10 +291,10 @@ class Trainer:
         prediction = 1.0 if prediction > 0.5 else 0.0
         if prediction == 0.0:
             plt.title(image_type + ', prediction=0.0')
-            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet_r');
+            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet_r')
         else:
             plt.title(image_type + ', prediction=1.0')
-            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet');
+            plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet')
 
         if self.log_to_comet:
             self.experiment.log_figure(figure_name=image_type + ', prediction=1.0')
@@ -338,7 +341,7 @@ class Trainer:
                 test = test.to(device=self.main_device, dtype=torch.float32)
                 out = model(test)
                 label = label.to(device=self.main_device, dtype=torch.float32)
-
+                #print(out.shape)
                 out = out.cpu().detach().numpy()
                 label = label.cpu().detach().numpy()
 

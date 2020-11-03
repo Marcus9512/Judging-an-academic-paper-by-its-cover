@@ -4,6 +4,7 @@ from src.Tools.open_review_dataset import *
 
 import pandas as pd
 import torchvision
+import PIL as p
 
 
 class Paper_dataset(Dataset):
@@ -51,8 +52,8 @@ class Paper_dataset(Dataset):
         self.csv_data, self.len = self.create_usable_csv(path_meta)
 
         self.transform = torchvision.transforms.Compose(
-            [torchvision.transforms.functional.to_tensor,
-             torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+            [torchvision.transforms.ToTensor(),
+             torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),])
 
         if print_csv:
             print(self.csv_data.index)
@@ -114,17 +115,12 @@ class Paper_dataset(Dataset):
 
         ret = {}
 
+        #image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
 
         image = image / 255
 
-        #print(image)
-        #print(image.shape)
-        #print(type(image))
         image = self.transform(image)
-        #print(image)
-        #print(image.shape)
-        #print(type(image))
 
 
         # This line might be needed by pytorch to switch place for the channel data
