@@ -5,6 +5,7 @@ Our "main" method.
 
 import sys
 import os
+import json
 
 # Fixes python path for some 
 sys.path.append(os.getcwd())
@@ -64,6 +65,78 @@ def get_model(dataset_type, model, pretrain):
     return get_resnet_model(channels, model, pretrain)
 
 
+def coarse_grain_search(args,
+                        network_type
+                        learn_rate_test = True,
+                        weight_decay_test = True,
+                        batch_size_test = True):
+    
+    use_scheduler = False
+    debug = True
+    pretrain = True
+    curr_run = 0
+
+    runs = []
+    generic_run = {
+        "learning_rate": args.lr,
+        "batch_size": args.batch_size,
+        "weight_decay": 1e-6,
+        "epochs": args.epochs,
+        "use_scheduler": use_scheduler
+        }
+
+    if learn_rate_test:
+        learn_rates = [1e-i for i in range(4, 9)]
+        for lr in learn_rates:
+            run = generic_run.copy()
+            run['learning_rate'] = lr
+            runs.append(run)
+    
+    if weight_decay_test:
+        weight_decays = [1e-i for i in range(6, 9)]
+        for weight_decay in weight_decays:
+            run = generic_run.copy()
+            run['weight_decay'] = weight_decay
+            runs.append(run)
+            
+    if batch_size_test:
+        batch_sizes = [10, 25, 50]
+        for batch_size in batch_sizes:
+            run = generic_run.copy()
+            run['batch_size'] = 'batch_size'
+            runs.append(run)
+
+
+    train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
+    test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
+
+    trainer = Trainer(train_dataset,
+        test_dataset,
+        logger=logger,
+        pretrained=args.pretrain,
+        network_type=network_type,
+        dataset_type=args.dataset,
+        log_to_comet=not debug,
+        create_heatmaps=args.create_heatmaps)
+
+    for run in runs:
+        curr_run += 1
+        print(f"################################ Running run {run}/{len(runs)}################################")
+        print(f"Run {run}:", run)
+        model = get_model(args.dataset, network_type, args.pretrain)
+        validation_recall, validation_precision = trainer.train(model=model,
+                batch_size=args.batch_size,
+                learn_rate=lr,
+                epochs=args.epochs,
+                image_type=args.dataset.value,
+                use_scheduler=use_scheduler)
+        run['run'] = curr_run
+        run['validation_recall'] = validation_recall
+        run['validation_precision'] = validation_precision
+        print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
+        with open('coarse_grain_results.json', 'w') as json_file:
+            json.dump(run, json_file)
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(LOGGER_NAME)
@@ -77,6 +150,8 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--pretrain", action="store_true")
     parser.add_argument("--create_heatmaps", action="store_true")
+    parser.add_argument("--use_scheduler", action="store_true")
+    parser.add_argument("--coarse_grain_search", action="store_true")
 
     args = parser.parse_args()
     logger.info(f"Dataset path: {args.base_path} , dataset: {args.dataset}")
@@ -88,26 +163,31 @@ if __name__ == "__main__":
     network_type = Network_type.Resnet34
 
     logger.info(f"Using {network_type}")
+    
+    if args.coarse_grain_search:
+        self.coarse_grain_search(args, network_type)
+    
+    else: 
+        model = get_model(args.dataset, network_type, args.pretrain)
 
-    model = get_model(args.dataset, network_type, args.pretrain)
+        train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
+        test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
 
-    train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
-    test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
+        timestamp = time.time()
+        trainer = Trainer(train_dataset,
+                        test_dataset,
+                        logger=logger,
+                        pretrained=args.pretrain,
+                        network_type=network_type,
+                        dataset_type=args.dataset,
+                        log_to_comet=not args.debug,
+                        create_heatmaps=args.create_heatmaps)
 
-    timestamp = time.time()
-    trainer = Trainer(train_dataset,
-                      test_dataset,
-                      logger=logger,
-                      pretrained=args.pretrain,
-                      network_type=network_type,
-                      dataset_type=args.dataset,
-                      log_to_comet=not args.debug,
-                      create_heatmaps=args.create_heatmaps)
-
-    trainer.train(model=model,
-                  batch_size=args.batch_size,
-                  learn_rate=args.lr,
-                  epochs=args.epochs,
-                  image_type=args.dataset.value)
+        trainer.train(model=model,
+                    batch_size=args.batch_size,
+                    learn_rate=args.lr,
+                    epochs=args.epochs,
+                    image_type=args.dataset.value,
+                    use_scheduler=args.use_scheduler)
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")

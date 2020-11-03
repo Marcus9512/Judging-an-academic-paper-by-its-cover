@@ -93,7 +93,8 @@ class Trainer:
             print("Could not find pycuda and thus not show amazing stats about youre GPU, have you installed CUDA?")
             pass
 
-    def train(self, model, batch_size, learn_rate, epochs, image_type):
+    def train(self, model, batch_size, learn_rate, epochs, image_type,
+                 weight_decay: float = 1e-6, use_scheduler: bool = True):
 
         '''
         Performs a train and test cycle at the given model
@@ -147,15 +148,20 @@ class Trainer:
                                               dataloader_val,
                                               epochs,
                                               learn_rate,
-                                              image_type=image_type)
+                                              image_type=image_type,
+                                              weight_decay=weight_decay,
+                                              use_scheduler=use_scheduler)
 
         if self.create_heatmaps:
             self.create_CAMs(model, dataloader_val, image_type)
 
         # Test model
-        self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
-        self.test_model(model, dataloader_val, batch_size=batch_size, prefix="validation")
+        _, training_recall, training_precision = self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
+        _, validation_recall, validation_precision = self.test_model(model, dataloader_val, batch_size=batch_size, prefix="validation")
         self.test_model(model, dataloader_test, batch_size=batch_size, prefix="test")
+
+        return validation_recall, validation_precision
+
 
     def save_model(self, model, image_type):
         path = "saved_nets"
@@ -173,14 +179,18 @@ class Trainer:
                                  epochs,
                                  learn_rate,
                                  image_type,
-                                 eval_every: int = 50):
+                                 eval_every: int = 50,
+                                 weight_decay: float = 1e-6,
+                                 use_scheduler: bool = True
+                                 ):
 
         # select optimizer type, current is SGD
-        optimizer = opt.Adam(model.parameters(), lr=learn_rate, weight_decay=1e-6)
+        optimizer = opt.Adam(model.parameters(), lr=learn_rate, weight_decay=weight_decay)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
-
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
+        
+        if use_scheduler:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
 
         i_batch = 0
         train_loss = 0
@@ -235,7 +245,8 @@ class Trainer:
 
                         loss.backward()
                         optimizer.step()
-                        scheduler.step()
+                        if use_scheduler:
+                            scheduler.step()
 
                         train_progress_bar.update()
 
@@ -373,3 +384,5 @@ class Trainer:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
+
+        return accuracy, recall, precision
