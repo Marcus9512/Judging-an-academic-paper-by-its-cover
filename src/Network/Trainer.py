@@ -184,7 +184,7 @@ class Trainer:
                                  epochs,
                                  learn_rate,
                                  image_type,
-                                 eval_every: int = 50):
+                                 eval_every: int = 100):
 
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
         params_to_update = model.parameters()
@@ -204,13 +204,12 @@ class Trainer:
 
         i_batch = 0
         train_loss = 0
+        train_true_positive, train_false_positive, \
+            train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
         with tqdm(desc="Epochs", total=epochs) as epoch_progress_bar:
             for e in range(epochs):
                 # initialize as train
                 model.train()
-
-                train_true_positive, train_false_positive, \
-                    train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
                 with tqdm(desc="Train", total=len(dataloader_train)) as train_progress_bar:
                     for _, data in enumerate(dataloader_train):
                         i_batch += 1
@@ -241,38 +240,41 @@ class Trainer:
 
                                     eval_probability = torch.sigmoid(out)
 
-                                    eval_label = eval_data["label"]
-                                    eval_predictions = np.round(eval_probability.item())
+                                    eval_label = eval_data["label"].cpu().detach().numpy().astype(bool)
+                                    eval_predictions = np.round(eval_probability.cpu().detach().numpy()).astype(bool)
 
                                     """Accumulate eval metrics"""
-                                    eval_true_positive += (eval_label == True & eval_predictions == True)
-                                    eval_false_positive += (eval_label == False & eval_predictions == True)
-                                    eval_true_negative += (eval_label == False & eval_predictions == False)
-                                    eval_false_negative += (eval_label == True & eval_predictions == False)
+                                    eval_true_positive += ((eval_label == True) & (eval_predictions == True)).sum()
+                                    eval_false_positive += ((eval_label == False) & (eval_predictions == True)).sum()
+                                    eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
+                                    eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
+
+                                # To avoid zero division
+                                epsilon = 1e-8
 
                                 """Calculate eval metrics"""
-                                eval_precision = eval_true_positive / (eval_true_positive + eval_false_positive)
-                                eval_recall = eval_true_positive / (eval_true_positive + eval_false_negative)
+                                eval_precision = eval_true_positive / (eval_true_positive + eval_false_positive + epsilon)
+                                eval_recall = eval_true_positive / (eval_true_positive + eval_false_negative + epsilon)
                                 eval_accuracy = (eval_true_positive + eval_true_negative) / \
                                                 (eval_true_positive + eval_true_negative
-                                                 + eval_false_negative + eval_false_positive)
+                                                 + eval_false_negative + eval_false_positive + epsilon)
 
                                 """Calculate train metrics"""
-                                train_precision = train_true_positive / (train_true_positive + train_false_positive)
-                                train_recall = train_true_positive / (train_true_positive + train_false_negative)
+                                train_precision = train_true_positive / (train_true_positive + train_false_positive + epsilon)
+                                train_recall = train_true_positive / (train_true_positive + train_false_negative + epsilon)
                                 train_accuracy = (train_true_positive + train_true_negative) / \
                                                  (train_true_positive + train_true_negative
-                                                  + train_false_negative + train_false_positive)
+                                                  + train_false_negative + train_false_positive + epsilon)
 
                                 """Log train and eval metrics"""
-                                eval_progress_bar.write(f"eval - Loss: {eval_loss / len(dataloader_val)}")
+                                eval_progress_bar.write(f"\neval - Loss: {eval_loss / len(dataloader_val)}")
                                 eval_progress_bar.write(f"train - Loss: {train_loss / eval_every}")
 
-                                eval_progress_bar.write(f"eval precision {eval_precision}")
+                                eval_progress_bar.write(f"\neval precision {eval_precision}")
                                 eval_progress_bar.write(f"eval recall {eval_recall}")
                                 eval_progress_bar.write(f"eval accuracy {eval_accuracy}")
 
-                                eval_progress_bar.write(f"train precision {train_precision}")
+                                eval_progress_bar.write(f"\ntrain precision {train_precision}")
                                 eval_progress_bar.write(f"train recall {train_recall}")
                                 eval_progress_bar.write(f"train accuracy {train_accuracy}")
 
@@ -308,13 +310,13 @@ class Trainer:
                         """ Accumulate train metrics"""
                         train_probability = torch.sigmoid(out)
 
-                        train_label = label
-                        train_predictions = np.round(train_probability.item()).astype(bool)
+                        train_label = label.cpu().detach().numpy().astype(bool)
+                        train_predictions = np.round(train_probability.cpu().detach().numpy()).astype(bool)
 
-                        train_true_positive += (train_label == True & train_predictions == True)
-                        train_false_positive += (train_label == False & train_predictions == True)
-                        train_true_negative += (train_label == False & train_predictions == False)
-                        train_false_negative += (train_label == True & train_predictions == False)
+                        train_true_positive += ((train_label == True) & (train_predictions == True)).sum()
+                        train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
+                        train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
+                        train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
 
                         train_loss += loss.item()
 
@@ -373,7 +375,7 @@ class Trainer:
         plt.imshow(np.transpose(image.cpu().data.numpy(), (1, 2, 0)))
 
         prediction = prediction.cpu().detach().numpy()[0]
-        prediction = 1.0 if prediction > 0.5 else 0.0
+        prediction = 1.0 if prediction > 0.0 else 0.0
         if prediction == 0.0:
             plt.title(image_type + ', prediction=0.0' + ', label=' + str(label))
             plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet_r')
@@ -417,7 +419,7 @@ class Trainer:
             image_pred = image.reshape(1, 3, 512, 1024)
             prediction = model(image_pred)
             prediction = prediction.cpu().detach().numpy()[0]
-            prediction = 1.0 if prediction > 0.5 else 0.0
+            prediction = 1.0 if prediction > 0.0 else 0.0
 
             if label == 0.0 and prediction == 0.0 and true_negative < num_images:
                 self.create_CAM(model, image, image_type, label, "true_negative " + str(true_negative))
@@ -440,20 +442,14 @@ class Trainer:
         self.test_model(model=model, dataloader=dataloader, prefix=prefix)
 
     def test_model(self, model, dataloader, batch_size: int, prefix: str, print_res=False):
-
-        correct = 0
-        total = 0
-        pred_acc = 0
-        pred_rej = 0
-
         len_test = len(dataloader)
 
         self.logger.info(f"------{prefix}--------")
         self.logger.info(f"{prefix}, number of samples: {len_test * batch_size}")
         model.eval()
 
-        preds = np.array([])
-        true_pos = np.array([])
+        preds = []
+        labels = []
 
         for i in dataloader:
 
@@ -465,46 +461,23 @@ class Trainer:
                 out = model(test)
                 label = label.to(device=self.main_device, dtype=torch.float32)
                 # print(out.shape)
-                out = out.cpu().detach().numpy()
+
+                probability = torch.sigmoid(out).cpu().detach().numpy()
                 label = label.cpu().detach().numpy()
+                
+                labels.extend(label)
+                preds.extend(np.round(probability))
 
-                for element in range(len(label)):
-                    pred = 1.0 if out[element][0] > 0.5 else 0.0
-                    found = False
-                    preds = np.append(preds, pred)
-                    true_pos = np.append(true_pos, label[element][0])
-
-                    if pred == 1:
-                        pred_acc += 1
-                    else:
-                        pred_rej += 1
-
-                    if label[element][0] == pred:
-                        correct += 1
-                        found = True
-                    total += 1
-
-                    if print_res:
-                        self.logger.info(
-                            f"Output from network, predicted: {pred}, label: {label[element][0]}, out: {out[element][0]}, "
-                            f"correct: {found}, total correct: {correct}, total: {total}")
-
-        accuracy = accuracy_score(y_true=true_pos, y_pred=preds)
-        recall = recall_score(y_true=true_pos, y_pred=preds)
-        precision = precision_score(y_true=true_pos, y_pred=preds)
+        accuracy = accuracy_score(y_true=labels, y_pred=preds)
+        recall = recall_score(y_true=labels, y_pred=preds)
+        precision = precision_score(y_true=labels, y_pred=preds)
 
         self.logger.info(f"Accuracy: {accuracy}%")
         self.logger.info(f"Recall: {recall}")
         self.logger.info(f"Precision: {precision}%")
-
-        self.logger.info(f"Predicted accept {pred_acc / total}")
-        self.logger.info(f"Predicted reject {pred_rej / total}")
 
         # Log to comet
         if self.log_to_comet:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
-
-            self.experiment.log_metric(f"{prefix} - Predicted accept", pred_acc / total)
-            self.experiment.log_metric(f"{prefix} - Predicted reject", pred_rej / total)
