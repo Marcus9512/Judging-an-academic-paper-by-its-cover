@@ -64,6 +64,8 @@ class Trainer:
             if freeze:
                 self.experiment.add_tag("freeze")
 
+            self.experiment.add_tag("Augmentation")
+
     def get_main_device(self, use_gpu):
         '''
            Initilize class by loading data and maybe preprocess
@@ -326,9 +328,12 @@ class Trainer:
 
                             average_train_loss += loss.item()
 
-                            del loss
+                            loss.backward()
+                            optimizer.step()
+                            scheduler.step()
 
                         """ Accumulate train metrics"""
+                        '''
                         train_probability = torch.sigmoid(out)
 
                         train_label = label.cpu().detach().numpy().astype(bool)
@@ -338,12 +343,9 @@ class Trainer:
                         train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
                         train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
                         train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
+                        '''
 
                         train_loss += (average_train_loss/len(batch))
-
-                        loss.backward()
-                        optimizer.step()
-                        scheduler.step()
 
                         train_progress_bar.update()
 
