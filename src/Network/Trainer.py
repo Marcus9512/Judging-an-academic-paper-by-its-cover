@@ -309,6 +309,13 @@ class Trainer:
                         for b in batch:
                             b = b.to(device=self.main_device, dtype=torch.float32)
                             out = model(b)
+
+                            #release memory
+                            b = b.detach()
+                            del b
+
+                            torch.cuda.empty_cache()
+
                             loss = evaluation(out, label)
                             average_train_loss += loss.item()
 
