@@ -307,7 +307,7 @@ class Trainer:
 
                         average_train_loss = 0
                         for b in batch:
-                            b.to(device=self.main_device, dtype=torch.float32)
+                            b = b.to(device=self.main_device, dtype=torch.float32)
                             out = model(b)
                             loss = evaluation(out, label)
                             average_train_loss += loss.item()
