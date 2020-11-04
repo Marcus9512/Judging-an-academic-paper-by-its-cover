@@ -306,6 +306,9 @@ class Trainer:
                         optimizer.zero_grad()
 
                         average_train_loss = 0
+
+                        #print(torch.cuda.memory_summary(self.main_device))
+                        #print(batch)
                         for b in batch:
                             b = b.to(device=self.main_device, dtype=torch.float32)
                             out = model(b)
@@ -317,7 +320,13 @@ class Trainer:
                             torch.cuda.empty_cache()
 
                             loss = evaluation(out, label)
+
+                            out.detach()
+                            del out
+
                             average_train_loss += loss.item()
+
+                            del loss
 
                         """ Accumulate train metrics"""
                         train_probability = torch.sigmoid(out)

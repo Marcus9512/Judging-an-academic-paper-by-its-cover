@@ -126,11 +126,9 @@ class Paper_dataset(Dataset):
 
 
         #image = Image.fromarray(image.astype(np.float64))
-        image = Image.fromarray(image)
+        image = Image.fromarray(np.uint8(image))
 
         ##image = image / 255.0
-
-        image.save("Test.png")
 
 
         images = self.transformations(image)
