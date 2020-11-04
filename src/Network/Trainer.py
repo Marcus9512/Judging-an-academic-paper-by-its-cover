@@ -24,7 +24,8 @@ EXPERIMENT_LAUNCH_TIME = datetime.now()
 
 class Trainer:
 
-    def __init__(self, train_dataset, test_dataset, logger, dataset_type, network_type, pretrained, freeze, use_gpu=True,
+    def __init__(self, train_dataset, test_dataset, logger, dataset_type, network_type, pretrained, freeze,
+                 use_gpu=True,
                  data_to_train=0.7,
                  data_to_eval=0.3,
                  log_to_comet=True,
@@ -207,6 +208,9 @@ class Trainer:
             for e in range(epochs):
                 # initialize as train
                 model.train()
+
+                train_true_positive, train_false_positive, \
+                    train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
                 with tqdm(desc="Train", total=len(dataloader_train)) as train_progress_bar:
                     for _, data in enumerate(dataloader_train):
                         i_batch += 1
@@ -216,6 +220,9 @@ class Trainer:
 
                         # 'eval_every' batch we evaluate
                         if i_batch % eval_every == 0:
+
+                            eval_true_positive, eval_false_positive, \
+                                eval_true_negative, eval_false_negative = 0.0, 0.0, 0.0, 0.0
                             with tqdm(desc="Evaluation", total=len(dataloader_val)) as eval_progress_bar:
                                 # Set eval mode
                                 model.eval()
@@ -232,13 +239,57 @@ class Trainer:
                                     eval_progress_bar.update()
                                     eval_loss += loss.item()
 
+                                    eval_probability = torch.sigmoid(out)
+
+                                    eval_label = eval_data["label"]
+                                    eval_predictions = np.round(eval_probability.item())
+
+                                    """Accumulate eval metrics"""
+                                    eval_true_positive += (eval_label == True & eval_predictions == True)
+                                    eval_false_positive += (eval_label == False & eval_predictions == True)
+                                    eval_true_negative += (eval_label == False & eval_predictions == False)
+                                    eval_false_negative += (eval_label == True & eval_predictions == False)
+
+                                """Calculate eval metrics"""
+                                eval_precision = eval_true_positive / (eval_true_positive + eval_false_positive)
+                                eval_recall = eval_true_positive / (eval_true_positive + eval_false_negative)
+                                eval_accuracy = (eval_true_positive + eval_true_negative) / \
+                                                (eval_true_positive + eval_true_negative
+                                                 + eval_false_negative + eval_false_positive)
+
+                                """Calculate train metrics"""
+                                train_precision = train_true_positive / (train_true_positive + train_false_positive)
+                                train_recall = train_true_positive / (train_true_positive + train_false_negative)
+                                train_accuracy = (train_true_positive + train_true_negative) / \
+                                                 (train_true_positive + train_true_negative
+                                                  + train_false_negative + train_false_positive)
+
+                                """Log train and eval metrics"""
                                 eval_progress_bar.write(f"eval - Loss: {eval_loss / len(dataloader_val)}")
                                 eval_progress_bar.write(f"train - Loss: {train_loss / eval_every}")
+
+                                eval_progress_bar.write(f"eval precision {eval_precision}")
+                                eval_progress_bar.write(f"eval recall {eval_recall}")
+                                eval_progress_bar.write(f"eval accuracy {eval_accuracy}")
+
+                                eval_progress_bar.write(f"train precision {train_precision}")
+                                eval_progress_bar.write(f"train recall {train_recall}")
+                                eval_progress_bar.write(f"train accuracy {train_accuracy}")
 
                                 # Log to comet
                                 if self.log_to_comet:
                                     self.experiment.log_metric(f"eval - Loss", eval_loss / len(dataloader_val))
                                     self.experiment.log_metric(f"train - Loss", train_loss / eval_every)
+
+                                    # Logging here cannot have the same name as when we are logging at the bottom
+                                    # we will not use the '-' sign here
+                                    self.experiment.log_metric(f"eval precision", eval_precision)
+                                    self.experiment.log_metric(f"eval recall", eval_recall)
+                                    self.experiment.log_metric(f"eval accuracy", eval_accuracy)
+
+                                    self.experiment.log_metric(f"train precision", train_precision)
+                                    self.experiment.log_metric(f"train recall", train_recall)
+                                    self.experiment.log_metric(f"train accuracy", train_accuracy)
 
                                 # Set back to train
                                 model.train()
@@ -246,9 +297,24 @@ class Trainer:
                                 # Reset train_loss
                                 train_loss = 0
 
+                                # Reset train metrics
+                                train_true_positive, train_false_positive, \
+                                    train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
+
                         optimizer.zero_grad()
                         out = model(batch)
                         loss = evaluation(out, label)
+
+                        """ Accumulate train metrics"""
+                        train_probability = torch.sigmoid(out)
+
+                        train_label = label
+                        train_predictions = np.round(train_probability.item()).astype(bool)
+
+                        train_true_positive += (train_label == True & train_predictions == True)
+                        train_false_positive += (train_label == False & train_predictions == True)
+                        train_true_negative += (train_label == False & train_predictions == False)
+                        train_false_negative += (train_label == True & train_predictions == False)
 
                         train_loss += loss.item()
 
@@ -316,7 +382,8 @@ class Trainer:
             plt.imshow(skimage.transform.resize(heatmap[0], image.shape[1:3]), alpha=0.5, cmap='jet')
 
         if self.log_to_comet:
-            self.experiment.log_figure(figure_name=image_type + ', prediction=' + str(prediction) + ', label=' + str(label))
+            self.experiment.log_figure(
+                figure_name=image_type + ', prediction=' + str(prediction) + ', label=' + str(label))
 
         path = "saved_CAMs"
         if not os.path.exists(path):
@@ -343,7 +410,7 @@ class Trainer:
                 return
 
             image = data['image'][0].to(device=self.main_device, dtype=torch.float32)
-            
+
             label = data['label'][0].to(device=self.main_device, dtype=torch.float32)
             label = label.cpu().detach().numpy()[0]
 
@@ -367,7 +434,6 @@ class Trainer:
             if label == 0.0 and prediction == 1.0 and false_positive < num_images:
                 self.create_CAM(model, image, image_type, label, "false_positive " + str(false_positive))
                 false_positive = false_positive + 1
-
 
     def test_from_file(self, model_path, model, dataloader, prefix: str):
         model.load_state_dict(torch.load(model_path))
@@ -398,7 +464,7 @@ class Trainer:
                 test = test.to(device=self.main_device, dtype=torch.float32)
                 out = model(test)
                 label = label.to(device=self.main_device, dtype=torch.float32)
-                #print(out.shape)
+                # print(out.shape)
                 out = out.cpu().detach().numpy()
                 label = label.cpu().detach().numpy()
 
@@ -409,9 +475,9 @@ class Trainer:
                     true_pos = np.append(true_pos, label[element][0])
 
                     if pred == 1:
-                        pred_acc+=1
+                        pred_acc += 1
                     else:
-                        pred_rej+=1
+                        pred_rej += 1
 
                     if label[element][0] == pred:
                         correct += 1
