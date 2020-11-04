@@ -1,11 +1,11 @@
 from torch.utils.data import *
 from os import path
 from src.Tools.open_review_dataset import *
+from randaugment import RandAugment
 
 import pandas as pd
-import torchvision
-import PIL as p
-
+import matplotlib.pyplot as plt
+from src.Data_processing.Transformation_wraper import *
 
 class Paper_dataset(Dataset):
     '''
@@ -17,18 +17,20 @@ class Paper_dataset(Dataset):
                  dataset_type,
                  width,
                  height,
+                 num_transformations=2,
                  print_csv=False,
                  train=True):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(LOGGER_NAME)
+
         self.logger = logger
         self.train = train
+        self.num_transformations = num_transformations
 
         # Set global path and path to meta file
         self.data_path = data_path
         path_meta = os.path.join(data_path, "meta.csv")
 
-        self.four_dim = False
 
         if dataset_type == Mode.RGBFrontPage:
             self.dataset_type = "-rgb-frontpage-"
@@ -36,10 +38,8 @@ class Paper_dataset(Dataset):
             self.dataset_type = "-gs-frontpage-"
         elif dataset_type == Mode.GSChannels:
             self.dataset_type = "-gs-channels-"
-            self.four_dim = True
         elif dataset_type == Mode.RGBChannels:
             self.dataset_type = "-rgb-channels-"
-            self.four_dim = True
         elif dataset_type == Mode.RGBBigImage:
             self.dataset_type = "-rgb-bigimage-"
         elif dataset_type == Mode.GSBigImage:
@@ -51,9 +51,15 @@ class Paper_dataset(Dataset):
         self.res = str(width) + "-" + str(height)
         self.csv_data, self.len = self.create_usable_csv(path_meta)
 
-        self.transform = torchvision.transforms.Compose(
-            [torchvision.transforms.ToTensor(),
-             torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),])
+        # RandAugment source https://pypi.org/project/randaugment/
+        strong_augmentation = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(size=(int(height), int(width)),
+                                                     scale=(0.9, 1.0)),
+            torchvision.transforms.RandomHorizontalFlip(p=0.5),
+            RandAugment(),
+        ])
+
+        self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
 
         if print_csv:
             print(self.csv_data.index)
@@ -118,9 +124,23 @@ class Paper_dataset(Dataset):
         #image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
 
-        image = image / 255
+        #image = image / 255.0
+        image = Image.fromarray(image)
 
-        image = self.transform(image)
+
+        ##image = image / 255.0
+
+        image.save("Test.png")
+
+
+        images = self.transformations(image)
+
+        print(len(images))
+
+        torchvision.utils.save_image(images[0], "T1.png")
+        torchvision.utils.save_image(images[1], "T2.png")
+        torchvision.utils.save_image(images[2], "T3.png")
+        exit()
 
 
         # This line might be needed by pytorch to switch place for the channel data
@@ -129,7 +149,11 @@ class Paper_dataset(Dataset):
         #else:
         #    image = image.transpose((0, 3, 1, 2))
 
-        ret["image"] = image
+        if self.train:
+            ret["image"] = images
+        else:
+            ret["image"] = images[0]
+
         if data["accepted"]:
             ret["label"] = np.asarray([1.0])
         else:
