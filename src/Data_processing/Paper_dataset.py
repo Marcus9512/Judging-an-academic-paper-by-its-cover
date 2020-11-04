@@ -53,7 +53,7 @@ class Paper_dataset(Dataset):
 
         # RandAugment source https://pypi.org/project/randaugment/
         strong_augmentation = torchvision.transforms.Compose([
-            torchvision.transforms.RandomResizedCrop(size=(int(height), int(width)),
+            torchvision.transforms.RandomResizedCrop(size=(int(height*2), int(width*4)),
                                                      scale=(0.9, 1.0)),
             torchvision.transforms.RandomHorizontalFlip(p=0.5),
             RandAugment(),
@@ -124,9 +124,9 @@ class Paper_dataset(Dataset):
         #image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
 
-        #image = image / 255.0
-        image = Image.fromarray(image)
 
+        #image = Image.fromarray(image.astype(np.float64))
+        image = Image.fromarray(image)
 
         ##image = image / 255.0
 
@@ -135,13 +135,9 @@ class Paper_dataset(Dataset):
 
         images = self.transformations(image)
 
-        print(len(images))
-
-        torchvision.utils.save_image(images[0], "T1.png")
-        torchvision.utils.save_image(images[1], "T2.png")
-        torchvision.utils.save_image(images[2], "T3.png")
-        exit()
-
+        #print(len(images))
+        #for i in range(len(images)):
+        #    torchvision.utils.save_image(images[i], f"T{i}.png")
 
         # This line might be needed by pytorch to switch place for the channel data
         #if not self.four_dim:

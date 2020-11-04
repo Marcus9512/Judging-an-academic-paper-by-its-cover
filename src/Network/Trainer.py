@@ -214,7 +214,7 @@ class Trainer:
                     for _, data in enumerate(dataloader_train):
                         i_batch += 1
 
-                        batch = data["image"].to(device=self.main_device, dtype=torch.float32)
+                        batch = data["image"]
                         label = data["label"].to(device=self.main_device, dtype=torch.float32)
 
                         # 'eval_every' batch we evaluate
@@ -228,7 +228,7 @@ class Trainer:
 
                                 eval_loss = 0
                                 for eval_data in dataloader_val:
-                                    eval_batch = eval_data["image"].to(device=self.main_device, dtype=torch.float32)
+                                    eval_batch = eval_data["image"][0].to(device=self.main_device, dtype=torch.float32)
                                     eval_label = eval_data["label"].to(device=self.main_device, dtype=torch.float32)
 
                                     with torch.no_grad():
@@ -304,8 +304,13 @@ class Trainer:
                                     train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
 
                         optimizer.zero_grad()
-                        out = model(batch)
-                        loss = evaluation(out, label)
+
+                        average_train_loss = 0
+                        for b in batch:
+                            b.to(device=self.main_device, dtype=torch.float32)
+                            out = model(b)
+                            loss = evaluation(out, label)
+                            average_train_loss += loss.item()
 
                         """ Accumulate train metrics"""
                         train_probability = torch.sigmoid(out)
@@ -318,7 +323,7 @@ class Trainer:
                         train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
                         train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
 
-                        train_loss += loss.item()
+                        train_loss += (average_train_loss/len(batch))
 
                         loss.backward()
                         optimizer.step()
