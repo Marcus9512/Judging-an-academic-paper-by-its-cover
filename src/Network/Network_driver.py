@@ -78,7 +78,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=Mode, choices=list(Mode), required=True)
     parser.add_argument("--lr", type=float, help="learn rate", default=0.0001)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)
-    parser.add_argument("--scale", type=int, help="The size of the data will be multiplied with scale", default=5)
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=50)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--pretrain", action="store_true")
@@ -98,8 +97,8 @@ if __name__ == "__main__":
 
     model = get_model(args.dataset, network_type, pretrain=args.pretrain, freeze_pretrain=args.freeze)
 
-    train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True, scale_dataset=args.scale)
-    test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False, scale_dataset=0)
+    train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
+    test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
 
     timestamp = time.time()
     trainer = Trainer(train_dataset,

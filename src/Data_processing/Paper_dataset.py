@@ -17,7 +17,6 @@ class Paper_dataset(Dataset):
                  dataset_type,
                  width,
                  height,
-                 scale_dataset=2,
                  print_csv=False,
                  train=True):
         logging.basicConfig(level=logging.INFO)
@@ -25,7 +24,6 @@ class Paper_dataset(Dataset):
 
         self.logger = logger
         self.train = train
-        self.scale_dataset = scale_dataset
 
         self.width = width
         self.height = height
@@ -109,7 +107,7 @@ class Paper_dataset(Dataset):
         return csv, len(csv.index)
 
     def __len__(self):
-        return self.len * self.scale_dataset
+        return self.len
 
     def get_dummy_transform(self):
 
@@ -117,10 +115,9 @@ class Paper_dataset(Dataset):
         std = [0.229, 0.224, 0.225]
 
         return torchvision.transforms.Compose([
-            torchvision.transforms.RandomResizedCrop(size=(int(self.height * 2), int(self.width * 4)),
-                                                     scale=(0.9, 1.0)),
+            #torchvision.transforms.RandomResizedCrop(size=(int(self.height * 2), int(self.width * 4)),
+            #                                         scale=(0.9, 1.0)),
             torchvision.transforms.RandomHorizontalFlip(p=0.5),
-            RandAugment(),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(mean=mean, std=std),
         ])
