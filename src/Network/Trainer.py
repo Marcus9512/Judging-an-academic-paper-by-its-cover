@@ -323,8 +323,8 @@ class Trainer:
 
                             loss = evaluation(out, label)
 
-                            out.detach()
-                            del out
+                            out = out.detach()
+                            #del out
 
                             average_train_loss += loss.item()
 
@@ -333,7 +333,7 @@ class Trainer:
                             scheduler.step()
 
                         """ Accumulate train metrics"""
-                        '''
+
                         train_probability = torch.sigmoid(out)
 
                         train_label = label.cpu().detach().numpy().astype(bool)
@@ -343,7 +343,7 @@ class Trainer:
                         train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
                         train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
                         train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
-                        '''
+
 
                         train_loss += (average_train_loss/len(batch))
 
@@ -476,7 +476,7 @@ class Trainer:
 
         for i in dataloader:
 
-            test = i["image"]
+            test = i["image"][0]
             label = i["label"]
 
             with torch.no_grad():
