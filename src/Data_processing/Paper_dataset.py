@@ -17,7 +17,7 @@ class Paper_dataset(Dataset):
                  dataset_type,
                  width,
                  height,
-                 num_transformations=2,
+                 scale_dataset=2,
                  print_csv=False,
                  train=True):
         logging.basicConfig(level=logging.INFO)
@@ -25,7 +25,7 @@ class Paper_dataset(Dataset):
 
         self.logger = logger
         self.train = train
-        self.num_transformations = num_transformations
+        self.scale_dataset = scale_dataset
 
         self.width = width
         self.height = height
@@ -109,7 +109,7 @@ class Paper_dataset(Dataset):
         return csv, len(csv.index)
 
     def __len__(self):
-        return self.len
+        return self.len * self.scale_dataset
 
     def get_dummy_transform(self):
 
@@ -126,6 +126,9 @@ class Paper_dataset(Dataset):
         ])
 
     def __getitem__(self, item):
+
+        # if length of dataset is extended
+        item = item % self.len
         # Load data from row item, note that the entire csv file is located in the memory, might be a problem if
         # the csv file gets to big
         data = self.csv_data.loc[item, :]
@@ -133,7 +136,6 @@ class Paper_dataset(Dataset):
         ret = {}
 
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
-
         image = Image.fromarray(np.uint8(image))
 
         # TODO REPLACE self.get_dummy_transform()
