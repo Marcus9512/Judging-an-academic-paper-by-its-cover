@@ -216,7 +216,7 @@ class Trainer:
                     for _, data in enumerate(dataloader_train):
                         i_batch += 1
 
-                        batch = data["image"]
+                        batch = data["image"].to(device=self.main_device, dtype=torch.float32)
                         label = data["label"].to(device=self.main_device, dtype=torch.float32)
 
                         # 'eval_every' batch we evaluate
@@ -230,7 +230,7 @@ class Trainer:
 
                                 eval_loss = 0
                                 for eval_data in dataloader_val:
-                                    eval_batch = eval_data["image"][0].to(device=self.main_device, dtype=torch.float32)
+                                    eval_batch = eval_data["image"].to(device=self.main_device, dtype=torch.float32)
                                     eval_label = eval_data["label"].to(device=self.main_device, dtype=torch.float32)
 
                                     with torch.no_grad():
@@ -305,49 +305,28 @@ class Trainer:
                                 train_true_positive, train_false_positive, \
                                     train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
 
-                        optimizer.zero_grad()
+                    optimizer.zero_grad()
+                    out = model(batch)
+                    loss = evaluation(out, label)
 
-                        average_train_loss = 0
+                    """ Accumulate train metrics"""
+                    train_probability = torch.sigmoid(out)
 
-                        #print(torch.cuda.memory_summary(self.main_device))
-                        #print(batch)
-                        for b in batch:
-                            b = b.to(device=self.main_device, dtype=torch.float32)
-                            out = model(b)
+                    train_label = label.cpu().detach().numpy().astype(bool)
+                    train_predictions = np.round(train_probability.cpu().detach().numpy()).astype(bool)
 
-                            #release memory
-                            b = b.detach()
-                            del b
+                    train_true_positive += ((train_label == True) & (train_predictions == True)).sum()
+                    train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
+                    train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
+                    train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
 
-                            torch.cuda.empty_cache()
+                    train_loss += loss.item()
 
-                            loss = evaluation(out, label)
+                    loss.backward()
+                    optimizer.step()
+                    scheduler.step()
 
-                            out = out.detach()
-                            #del out
-
-                            average_train_loss += loss.item()
-
-                            loss.backward()
-                            optimizer.step()
-                            scheduler.step()
-
-                        """ Accumulate train metrics"""
-
-                        train_probability = torch.sigmoid(out)
-
-                        train_label = label.cpu().detach().numpy().astype(bool)
-                        train_predictions = np.round(train_probability.cpu().detach().numpy()).astype(bool)
-
-                        train_true_positive += ((train_label == True) & (train_predictions == True)).sum()
-                        train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
-                        train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
-                        train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
-
-
-                        train_loss += (average_train_loss/len(batch))
-
-                        train_progress_bar.update()
+                    train_progress_bar.update()
 
                 epoch_progress_bar.update()
             self.save_model(model, image_type)
@@ -476,7 +455,7 @@ class Trainer:
 
         for i in dataloader:
 
-            test = i["image"][0]
+            test = i["image"]
             label = i["label"]
 
             with torch.no_grad():

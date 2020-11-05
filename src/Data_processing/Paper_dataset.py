@@ -27,6 +27,9 @@ class Paper_dataset(Dataset):
         self.train = train
         self.num_transformations = num_transformations
 
+        self.width = width
+        self.height = height
+
         # Set global path and path to meta file
         self.data_path = data_path
         path_meta = os.path.join(data_path, "meta.csv")
@@ -52,14 +55,8 @@ class Paper_dataset(Dataset):
         self.csv_data, self.len = self.create_usable_csv(path_meta)
 
         # RandAugment source https://pypi.org/project/randaugment/
-        strong_augmentation = torchvision.transforms.Compose([
-            torchvision.transforms.RandomResizedCrop(size=(int(height*2), int(width*4)),
-                                                     scale=(0.9, 1.0)),
-            torchvision.transforms.RandomHorizontalFlip(p=0.5),
-            RandAugment(),
-        ])
 
-        self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
+        #self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
 
         if print_csv:
             print(self.csv_data.index)
@@ -114,6 +111,20 @@ class Paper_dataset(Dataset):
     def __len__(self):
         return self.len
 
+    def get_dummy_transform(self):
+
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        return torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(size=(int(self.height * 2), int(self.width * 4)),
+                                                     scale=(0.9, 1.0)),
+            torchvision.transforms.RandomHorizontalFlip(p=0.5),
+            RandAugment(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=mean, std=std),
+        ])
+
     def __getitem__(self, item):
         # Load data from row item, note that the entire csv file is located in the memory, might be a problem if
         # the csv file gets to big
@@ -121,32 +132,14 @@ class Paper_dataset(Dataset):
 
         ret = {}
 
-        #image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
 
-
-        #image = Image.fromarray(image.astype(np.float64))
         image = Image.fromarray(np.uint8(image))
 
-        ##image = image / 255.0
+        # TODO REPLACE self.get_dummy_transform()
+        image = self.get_dummy_transform()(image)
 
-
-        images = self.transformations(image)
-
-        #print(len(images))
-        #for i in range(len(images)):
-        #    torchvision.utils.save_image(images[i], f"T{i}.png")
-
-        # This line might be needed by pytorch to switch place for the channel data
-        #if not self.four_dim:
-        #    image = image.transpose((2, 0, 1))
-        #else:
-        #    image = image.transpose((0, 3, 1, 2))
-
-        if self.train:
-            ret["image"] = images
-        else:
-            ret["image"] = images[0]
+        ret["image"] = image
 
         if data["accepted"]:
             ret["label"] = np.asarray([1.0])
@@ -158,3 +151,18 @@ class Paper_dataset(Dataset):
         ret["authors"] = data["authors"]
 
         return ret
+
+'''
+CODE GRAVEYARD
+
+    #print(len(images))
+        #for i in range(len(images)):
+        #    torchvision.utils.save_image(images[i], f"T{i}.png")
+
+        # This line might be needed by pytorch to switch place for the channel data
+        #if not self.four_dim:
+        #    image = image.transpose((2, 0, 1))
+        #else:
+        #    image = image.transpose((0, 3, 1, 2))
+
+'''
