@@ -475,7 +475,7 @@ def pdf_to_binary_blob(arguments: Tuple):
     # If we were unable to extract images
     if images is None:
         return
-    
+
     if skip_first_page:
         images = images[1:]
 
@@ -486,6 +486,10 @@ def pdf_to_binary_blob(arguments: Tuple):
 
     # Drops first 200 pixels from top
     images = images[:, 200:, :, :]
+
+    # Drop x-pixels from the borders
+    images = images[:, :, 230:-230, :]
+
     images = [Image.fromarray(image) for image in images]
 
     # The binary blob is what will be written to the file
@@ -584,10 +588,9 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
         logger.fatal(f"{path_to_blob} is not a valid file")
         sys.exit(1)
 
-    binary_blob = np.load(path_to_blob)
+    binary_blob = np.load(path_to_blob).astype(np.uint8)
     if mode == Mode.RGBBigImage:
         plt.figure(figsize=(10, 6))
-        print(binary_blob.shape)
         plt.imshow(binary_blob)
         plt.savefig(f"{path_to_blob}.png")
     elif mode == Mode.RGBChannels:
