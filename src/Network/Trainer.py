@@ -305,28 +305,28 @@ class Trainer:
                                 train_true_positive, train_false_positive, \
                                     train_true_negative, train_false_negative = 0.0, 0.0, 0.0, 0.0
 
-                    optimizer.zero_grad()
-                    out = model(batch)
-                    loss = evaluation(out, label)
+                        optimizer.zero_grad()
+                        out = model(batch)
+                        loss = evaluation(out, label)
 
-                    """ Accumulate train metrics"""
-                    train_probability = torch.sigmoid(out)
+                        """ Accumulate train metrics"""
+                        train_probability = torch.sigmoid(out)
 
-                    train_label = label.cpu().detach().numpy().astype(bool)
-                    train_predictions = np.round(train_probability.cpu().detach().numpy()).astype(bool)
+                        train_label = label.cpu().detach().numpy().astype(bool)
+                        train_predictions = np.round(train_probability.cpu().detach().numpy()).astype(bool)
 
-                    train_true_positive += ((train_label == True) & (train_predictions == True)).sum()
-                    train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
-                    train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
-                    train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
+                        train_true_positive += ((train_label == True) & (train_predictions == True)).sum()
+                        train_false_positive += ((train_label == False) & (train_predictions == True)).sum()
+                        train_true_negative += ((train_label == False) & (train_predictions == False)).sum()
+                        train_false_negative += ((train_label == True) & (train_predictions == False)).sum()
 
-                    train_loss += loss.item()
+                        train_loss += loss.item()
 
-                    loss.backward()
-                    optimizer.step()
-                    scheduler.step()
+                        loss.backward()
+                        optimizer.step()
+                        scheduler.step()
 
-                    train_progress_bar.update()
+                        train_progress_bar.update()
 
                 epoch_progress_bar.update()
             self.save_model(model, image_type)

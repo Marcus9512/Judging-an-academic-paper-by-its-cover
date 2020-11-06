@@ -124,8 +124,6 @@ class Paper_dataset(Dataset):
 
     def __getitem__(self, item):
 
-        # if length of dataset is extended
-        item = item % self.len
         # Load data from row item, note that the entire csv file is located in the memory, might be a problem if
         # the csv file gets to big
         data = self.csv_data.loc[item, :]
