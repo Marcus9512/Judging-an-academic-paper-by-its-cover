@@ -134,7 +134,11 @@ class Paper_dataset(Dataset):
         image = Image.fromarray(np.uint8(image))
 
         # TODO REPLACE self.get_dummy_transform()
-        image = self.get_dummy_transform()(image)
+        if self.train:
+            image = self.get_dummy_transform()(image)
+        else:
+            #REPLACE!!!!!
+            image = self.get_dummy_transform()(image)
 
         ret["image"] = image
 
