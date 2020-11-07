@@ -83,9 +83,9 @@ class Augmentations():
                                             torchvision.transforms.Normalize(mean=mean, std=std),
                                             ])
     def get_gaussian_noise(self):
-        return torchvision.transforms.Compose([torchvision.transforms.RandomVerticalFlip(p=1),
-                                            torchvision.transforms.ToTensor(),
+        return torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
                                             torchvision.transforms.Normalize(mean=mean, std=std),
+                                            self.add_gaussian_noise(0, 1)
                                             ])
     def get_gaussian_blur(self):
         return torchvision.transforms.Compose([self.GaussianBlur(kernel_size=3),
