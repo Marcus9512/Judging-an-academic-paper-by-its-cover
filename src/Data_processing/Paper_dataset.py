@@ -2,7 +2,7 @@ from torch.utils.data import *
 from os import path
 from src.Tools.open_review_dataset import *
 from randaugment import RandAugment
-from src.Data_processing.Augmentations import get_transform
+from src.Data_processing.Augmentations import*
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -28,6 +28,8 @@ class Paper_dataset(Dataset):
 
         self.width = width
         self.height = height
+
+        self.transform = Augmentations([0, 0, 0, 0, 0, 1], self.height, self.width, 6)
 
         # Set global path and path to meta file
         self.data_path = data_path
@@ -110,28 +112,6 @@ class Paper_dataset(Dataset):
     def __len__(self):
         return self.len
 
-    def get_dummy_transform(self):
-
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
-
-        return torchvision.transforms.Compose([
-            #torchvision.transforms.RandomResizedCrop(size=(int(self.height * 2), int(self.width * 4)),
-            #                                         scale=(0.9, 1.0)),
-            torchvision.transforms.RandomHorizontalFlip(p=0.5),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(mean=mean, std=std),
-        ])
-
-    def get_normalisation(self):
-
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
-
-        return torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(mean=mean, std=std),
-        ])
 
     def __getitem__(self, item):
 
@@ -146,11 +126,11 @@ class Paper_dataset(Dataset):
 
         # TODO REPLACE self.get_dummy_transform()
         if self.train:
-            image = get_transform([0.2, 0.2, 0.2, 0.2, 0.2], self.height, self.width, 5)(image)
-            torchvision.utils.save_image( f"T{0}.png")
+            image = self.transform.get_transform()(image)
+            torchvision.utils.save_image(image, f"T{0}.png")
         else:
             #REPLACE!!!!!
-            image = self.get_normalisation()(image)
+            image = self.transform.get_normalisation()(image)
 
         ret["image"] = image
 
