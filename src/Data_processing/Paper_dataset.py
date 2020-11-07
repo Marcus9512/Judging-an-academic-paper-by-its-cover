@@ -122,6 +122,16 @@ class Paper_dataset(Dataset):
             torchvision.transforms.Normalize(mean=mean, std=std),
         ])
 
+    def get_normalisation(self):
+
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        return torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=mean, std=std),
+        ])
+
     def __getitem__(self, item):
 
         # Load data from row item, note that the entire csv file is located in the memory, might be a problem if
@@ -138,7 +148,7 @@ class Paper_dataset(Dataset):
             image = self.get_dummy_transform()(image)
         else:
             #REPLACE!!!!!
-            image = self.get_dummy_transform()(image)
+            image = self.get_normalisation()(image)
 
         ret["image"] = image
 
