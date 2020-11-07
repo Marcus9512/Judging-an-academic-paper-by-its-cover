@@ -2,6 +2,7 @@ from torch.utils.data import *
 from os import path
 from src.Tools.open_review_dataset import *
 from randaugment import RandAugment
+from src.Data_processing.Augmentations import get_transform
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -145,7 +146,8 @@ class Paper_dataset(Dataset):
 
         # TODO REPLACE self.get_dummy_transform()
         if self.train:
-            image = self.get_dummy_transform()(image)
+            image = get_transform([0.2, 0.2, 0.2, 0.2, 0.2], self.height, self.width, 5)(image)
+            torchvision.utils.save_image( f"T{0}.png")
         else:
             #REPLACE!!!!!
             image = self.get_normalisation()(image)
