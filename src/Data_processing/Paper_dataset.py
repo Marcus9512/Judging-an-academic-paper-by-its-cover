@@ -29,7 +29,7 @@ class Paper_dataset(Dataset):
         self.width = width
         self.height = height
 
-        self.transform = Augmentations([0, 0, 0, 0, 0, 1], self.height, self.width, 6)
+        self.transform = Augmentations([0.2, 0.16, 0.16, 0.16, 0.16, 0.16], self.height, self.width, 6)
 
         # Set global path and path to meta file
         self.data_path = data_path
@@ -127,7 +127,7 @@ class Paper_dataset(Dataset):
         # TODO REPLACE self.get_dummy_transform()
         if self.train:
             image = self.transform.get_transform()(image)
-            torchvision.utils.save_image(image, f"T{0}.png")
+            #torchvision.utils.save_image(image, f"T{0}.png")
         else:
             #REPLACE!!!!!
             image = self.transform.get_normalisation()(image)
