@@ -211,3 +211,5 @@ u-net-release/
 
 # So we can have data locally without pushing
 data
+runs/
+saved_nets/
