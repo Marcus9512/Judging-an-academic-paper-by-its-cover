@@ -448,7 +448,7 @@ def pdf_to_images(name: str, pdf: bytes, num_pages: int):
 
 
 def pdf_to_binary_blob(arguments: Tuple):
-    dataset_base_path, num_pages, width, height, mode, skip_first_page, pdf_path = arguments
+    dataset_base_path, num_pages, width, height, mode, skip_first_page, keep_leakage, pdf_path = arguments
     """Loads pdfs and converts the to a binary blob
 
     Args:
@@ -479,18 +479,18 @@ def pdf_to_binary_blob(arguments: Tuple):
     if skip_first_page:
         images = images[1:]
 
-    # For all images we will drop some pixels at the top because for some conferences
-    # it says in the top if they were accepted or not
+    if not keep_leakage:
+        # For all images we will drop some pixels at the top because for some conferences
+        # it says in the top if they were accepted or not
 
-    images = np.array([np.array(image) for image in images])
+        images = np.array([np.array(image) for image in images])
+        # Drops first 200 pixels from top
+        images = images[:, 200:, :, :]
 
-    # Drops first 200 pixels from top
-    images = images[:, 200:, :, :]
+        # Drop x-pixels from the borders
+        images = images[:, :, 230:-230, :]
 
-    # Drop x-pixels from the borders
-    images = images[:, :, 230:-230, :]
-
-    images = [Image.fromarray(image) for image in images]
+        images = [Image.fromarray(image) for image in images]
 
     # The binary blob is what will be written to the file
     # dataset_base_path/papers/name-mode-width-height.npy
@@ -548,7 +548,8 @@ def convert_pdf_dataset(dataset_base_path: str,
                         height: int,
                         mode: Mode,
                         num_processes: int,
-                        skip_first_page: bool):
+                        skip_first_page: bool,
+                        keep_leakage: bool):
     """Convert the pdf dataset into a different representation, e.g grayscaled images
     Args:
         dataset_base_path: path to the base of a pdf dataset
@@ -557,6 +558,8 @@ def convert_pdf_dataset(dataset_base_path: str,
         height: Height of the resulting images
         mode: The mode of image conversion, e.g GSChannels, RGBChannels..
         num_processes: The number of processes to use in dataset creation
+        skip_first_page: If True, drops the first paper page
+        keep_leakage: If True, does not remove known leakage
     Returns:
         Nothing, this writes to the dataset_base_path/papers directory
     """
@@ -564,13 +567,12 @@ def convert_pdf_dataset(dataset_base_path: str,
     with Pool(processes=num_processes) as pool:
         num_pdfs, pdf_iterator = pdf_loader(base_path=dataset_base_path)
 
-        jobs = ((dataset_base_path, num_pages, width, height, mode, skip_first_page, pdf_path)
+        jobs = ((dataset_base_path, num_pages, width, height, mode, skip_first_page, keep_leakage, pdf_path)
                 for pdf_path in pdf_iterator)
 
         with tqdm(total=num_pdfs) as progress_bar:
             for _ in pool.imap_unordered(pdf_to_binary_blob, jobs, chunksize=5):
                 progress_bar.update()
-
 
 
 def ensure_non_null(name: str, arg):
@@ -579,6 +581,7 @@ def ensure_non_null(name: str, arg):
         sys.exit(1)
 
     return arg
+
 
 def inspect_binary_blob(path_to_blob: str, mode: Mode):
     """Visualize a binary blob
@@ -623,7 +626,6 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
         raise NotImplementedError(f"{mode} is not implemented yet")
 
 
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
@@ -641,11 +643,10 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=Mode, choices=list(Mode))
     parser.add_argument('--skip_first_page', action='store_true')  # Skip the first page, but add a page to the end
     parser.add_argument("--inspect", type=str, help="A file to inspect")
+    parser.add_argument("--keep_leakage", action="store_true",
+                        help="With this flag information leakage won't be removed")
 
     args = parser.parse_args()
-
-
-
 
     timestamp = time.time()
 
@@ -670,7 +671,8 @@ if __name__ == "__main__":
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.GSChannels,
                             num_processes=ensure_non_null("num_processes", args.num_processes),
-                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
+                            skip_first_page=args.skip_first_page,
+                            keep_leakage=args.keep_leakage)
 
     if args.mode == Mode.RGBChannels:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -679,7 +681,8 @@ if __name__ == "__main__":
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBChannels,
                             num_processes=ensure_non_null("num_processes", args.num_processes),
-                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
+                            skip_first_page=args.skip_first_page,
+                            keep_leakage=args.keep_leakage)
 
     if args.mode == Mode.GSBigImage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -688,7 +691,8 @@ if __name__ == "__main__":
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.GSBigImage,
                             num_processes=ensure_non_null("num_processes", args.num_processes),
-                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
+                            skip_first_page=args.skip_first_page,
+                            keep_leakage=args.keep_leakage)
 
     if args.mode == Mode.RGBBigImage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -697,7 +701,8 @@ if __name__ == "__main__":
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBBigImage,
                             num_processes=ensure_non_null("num_processes", args.num_processes),
-                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
+                            skip_first_page=args.skip_first_page,
+                            keep_leakage=args.keep_leakage)
 
     if args.mode == Mode.GSFrontPage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -707,7 +712,8 @@ if __name__ == "__main__":
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.GSFrontPage,
                             num_processes=ensure_non_null("num_processes", args.num_processes),
-                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
+                            skip_first_page=args.skip_first_page,
+                            keep_leakage=args.keep_leakage)
 
     if args.mode == Mode.RGBFrontPage:
         convert_pdf_dataset(dataset_base_path=ensure_non_null("base_path", args.base_path),
@@ -717,7 +723,8 @@ if __name__ == "__main__":
                             height=ensure_non_null("image_height", args.image_height),
                             mode=Mode.RGBFrontPage,
                             num_processes=ensure_non_null("num_processes", args.num_processes),
-                            skip_first_page=ensure_non_null("skip_first_page", args.skip_first_page))
+                            skip_first_page=args.skip_first_page,
+                            keep_leakage=args.keep_leakage)
 
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
