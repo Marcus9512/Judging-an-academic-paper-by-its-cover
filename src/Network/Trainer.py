@@ -213,6 +213,7 @@ class Trainer:
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
+        #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=(int(len(dataloader_train) / 5)))
 
         i_batch = 0
         train_loss = 0
