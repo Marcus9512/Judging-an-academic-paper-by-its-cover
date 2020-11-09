@@ -171,7 +171,7 @@ python3 src/Tools/open_review_dataset.py \
 
 xdg-open $IMAGE_PATH.png
 ```
-### Inspect RGB Channels
+### Inspect RGB FrontPage
 ```bash
 IMAGE_PATH=...
 
