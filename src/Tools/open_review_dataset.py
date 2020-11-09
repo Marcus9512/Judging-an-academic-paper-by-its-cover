@@ -572,6 +572,14 @@ def convert_pdf_dataset(dataset_base_path: str,
                 progress_bar.update()
 
 
+
+def ensure_non_null(name: str, arg):
+    if arg is None:
+        logger.fatal(f"Missing argument {name}, exiting...")
+        sys.exit(1)
+
+    return arg
+
 def inspect_binary_blob(path_to_blob: str, mode: Mode):
     """Visualize a binary blob
 
@@ -615,6 +623,7 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
         raise NotImplementedError(f"{mode} is not implemented yet")
 
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
@@ -636,12 +645,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    def ensure_non_null(name: str, arg):
-        if arg is None:
-            logger.fatal(f"Missing argument {name}, exiting...")
-            sys.exit(1)
-
-        return arg
 
 
     timestamp = time.time()

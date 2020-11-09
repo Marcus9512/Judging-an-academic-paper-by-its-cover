@@ -30,3 +30,5 @@ urllib3==1.25.10
 wrapt==1.12.1
 comet-ml
 sklearn
+scikit-image
+randaugment==1.0.2
