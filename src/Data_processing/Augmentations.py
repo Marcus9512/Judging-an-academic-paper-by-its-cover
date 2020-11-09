@@ -54,7 +54,7 @@ class Augmentations():
             return self.merge_transforms(self.get_vertical_flip, standard_transform)
 
         elif(random_transform == 3):
-            return self.merge_transforms(self.get_gaussian_noise(), standard_transform)
+            return self.merge_transforms(standard_transform, self.get_gaussian_noise())
 
         elif(random_transform == 4):
             ##Wtf is kernel size
