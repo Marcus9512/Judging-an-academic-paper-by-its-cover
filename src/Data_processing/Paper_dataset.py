@@ -130,28 +130,10 @@ class Paper_dataset(Dataset):
 
         ret["image"] = image
 
-        if data["accepted"]:
-            ret["label"] = np.asarray([1.0])
-        else:
-            ret["label"] = np.asarray([0.0])
+        ret['label'] = np.array(data['accepted'], dtype=np.float32)
 
         ret["abstract"] = data["abstract"]
         ret["title"] = data["title"]
         ret["authors"] = data["authors"]
 
         return ret
-
-'''
-CODE GRAVEYARD
-
-    #print(len(images))
-        #for i in range(len(images)):
-        #    torchvision.utils.save_image(images[i], f"T{i}.png")
-
-        # This line might be needed by pytorch to switch place for the channel data
-        #if not self.four_dim:
-        #    image = image.transpose((2, 0, 1))
-        #else:
-        #    image = image.transpose((0, 3, 1, 2))
-
-'''

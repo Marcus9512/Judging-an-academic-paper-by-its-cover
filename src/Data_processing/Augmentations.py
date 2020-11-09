@@ -13,6 +13,7 @@ class Augmentations():
         self.height = height
         self.width = width
         self.num_trans = num_trans
+        np.random.seed(34)
 
     #https://discuss.pytorch.org/t/how-to-add-noise-to-mnist-dataset-when-using-pytorch/59745/2
     class add_gaussian_noise(object):
@@ -39,7 +40,6 @@ class Augmentations():
 
 
     def get_transform(self):
-        np.random.seed(34)
         random_transform = np.random.choice(self.num_trans, p=self.probs)
 
         standard_transform = self.get_normalisation()
