@@ -26,8 +26,6 @@ class Augmentations():
         def __repr__(self):
             return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
-
-
     class GaussianBlur():
         def __init__(self, kernel_size, sigma_min=0.1, sigma_max=2.0):
             self.sigma_min = sigma_min
@@ -43,61 +41,65 @@ class Augmentations():
     def get_transform(self):
         np.random.seed(34)
         random_transform = np.random.choice(self.num_trans, p=self.probs)
+
+        standard_transform = self.get_normalisation()
+
         if(random_transform == 0):
-            return self.get_normalisation()
+            return standard_transform
 
-        if(random_transform == 1):
-            return self.get_resize_crop()
+        elif(random_transform == 1):
+            return self.merge_transforms(self.get_resize_crop(), standard_transform)
             
-        if(random_transform == 2):
-            return self.get_vertical_flip
+        elif(random_transform == 2):
+            return self.merge_transforms(self.get_vertical_flip, standard_transform)
 
-        if(random_transform == 3):
-            return self.get_gaussian_noise()
+        elif(random_transform == 3):
+            return self.merge_transforms(self.get_gaussian_noise(), standard_transform)
 
-        if(random_transform == 4):
+        elif(random_transform == 4):
             ##Wtf is kernel size
-            return self.get_gaussian_blur()
+            return self.merge_transforms(self.get_gaussian_blur(), standard_transform)
                  
-        if(random_transform == 5):
-            return self.get_colorjitter()
+        elif(random_transform == 5):
+            return self.merge_transforms(self.get_colorjitter(), standard_transform)
+
+        elif(random_transform == 6):
+            return self.merge_transforms(self.merge_transforms(self.get_vertical_flip(), self.get_gaussian_noise()),
+                                         standard_transform)
         
         
 
-
+    def merge_transforms(self, transform1, transform2):
+        torchvision.transforms.Compose([transform1,
+                                        transform2,
+                                        ])
 
     def get_normalisation(self):
         return torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                                                torchvision.transforms.Normalize(mean=mean, std=std),
-                                                        ])
+                                                torchvision.transforms.Normalize(mean=mean,
+                                                                                 std=std),
+                                               ])
 
     def get_resize_crop(self):
-        return torchvision.transforms.Compose([torchvision.transforms.RandomResizedCrop(size=(int(self.height*2), int(self.width*4)),
-                                                    scale=(0.9, 1.0)),
-                                            torchvision.transforms.ToTensor(),
-                                            torchvision.transforms.Normalize(mean=mean, std=std),
-                                            ])
+        return torchvision.transforms.Compose([torchvision.transforms.RandomResizedCrop(size=(int(self.height*2),
+                                                                                              int(self.width*4)),
+                                                                                        scale=(0.9, 1.0)),
+                                               ])
     def get_vertical_flip(self):
         return torchvision.transforms.Compose([torchvision.transforms.RandomVerticalFlip(p=1),
-                                            torchvision.transforms.ToTensor(),
-                                            torchvision.transforms.Normalize(mean=mean, std=std),
-                                            ])
+                                               ])
     def get_gaussian_noise(self):
         return torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                                            torchvision.transforms.Normalize(mean=mean, std=std),
-                                            self.add_gaussian_noise(0, 1)
-                                            ])
+                                               ])
     def get_gaussian_blur(self):
         return torchvision.transforms.Compose([self.GaussianBlur(kernel_size=3),
-                                                        torchvision.transforms.ToTensor(),
-                                                        torchvision.transforms.Normalize(mean=mean, std=std),
-                                                        ])
-    
+                                               ])
     def get_colorjitter(self):
-        return torchvision.transforms.Compose([torchvision.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=1, hue=[-0.5,0.5]),
-                                    torchvision.transforms.ToTensor(),
-                                    torchvision.transforms.Normalize(mean=mean, std=std),
-                                    ])
+        return torchvision.transforms.Compose([torchvision.transforms.ColorJitter(brightness=0.1,
+                                                                                  contrast=0.1,
+                                                                                  saturation=1,
+                                                                                  hue=[-0.5,0.5]),
+                                               ])
 
 
     

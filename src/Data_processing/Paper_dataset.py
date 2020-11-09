@@ -29,7 +29,7 @@ class Paper_dataset(Dataset):
         self.width = width
         self.height = height
 
-        self.transform = Augmentations([0.2, 0.16, 0.16, 0.16, 0.16, 0.16], self.height, self.width, 6)
+        self.transform = Augmentations([0.2, 0, 0.16, 0.16, 0.16, 0.16, 0.16], self.height, self.width, 7)
 
         # Set global path and path to meta file
         self.data_path = data_path
@@ -94,7 +94,6 @@ class Paper_dataset(Dataset):
         csv = csv.drop(index=remove_element)
         #length2 = len(csv.index)
 
-
         if self.train:
             train_condition = csv.year != 2020
 
@@ -124,12 +123,9 @@ class Paper_dataset(Dataset):
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
         image = Image.fromarray(np.uint8(image))
 
-        # TODO REPLACE self.get_dummy_transform()
         if self.train:
             image = self.transform.get_transform()(image)
-            #torchvision.utils.save_image(image, f"T{0}.png")
         else:
-            #REPLACE!!!!!
             image = self.transform.get_normalisation()(image)
 
         ret["image"] = image

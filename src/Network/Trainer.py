@@ -116,6 +116,14 @@ class Trainer:
         self.logger.info(f"\t Batch \t\t{batch_size}")
         self.logger.info(f"\t Learn rate \t{learn_rate}")
 
+        weight_decay = 1e-6
+        if self.log_to_comet:
+            self.experiment.log_parameter("Batch_size", batch_size)
+            self.experiment.log_parameter("Learn_rate", learn_rate)
+            self.experiment.log_parameter("Epochs", epochs)
+            self.experiment.log_parameter("Weight_decay", weight_decay)
+
+
         # assign model to main device
         model.to(self.main_device)
 
@@ -154,6 +162,7 @@ class Trainer:
                                               dataloader_val,
                                               epochs,
                                               learn_rate,
+                                              weight_decay=weight_decay,
                                               image_type=image_type)
 
         # Custom dataloader to create CAMs - batch size set to 1
@@ -186,6 +195,7 @@ class Trainer:
                                  epochs,
                                  learn_rate,
                                  image_type,
+                                 weight_decay,
                                  eval_every: int = 100):
 
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
@@ -198,7 +208,7 @@ class Trainer:
                     print("\t", name)
 
         # select optimizer type, current is SGD
-        optimizer = opt.Adam(params_to_update, lr=learn_rate, weight_decay=1e-6)
+        optimizer = opt.Adam(params_to_update, lr=learn_rate, weight_decay=weight_decay)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
