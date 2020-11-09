@@ -90,6 +90,7 @@ class Augmentations():
                                                ])
     def get_gaussian_noise(self):
         return torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+                                               self.add_gaussian_noise(0, 1)
                                                ])
     def get_gaussian_blur(self):
         return torchvision.transforms.Compose([self.GaussianBlur(kernel_size=3),
