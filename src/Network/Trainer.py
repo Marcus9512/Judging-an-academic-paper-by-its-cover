@@ -166,7 +166,7 @@ class Trainer:
                                               image_type=image_type)
 
         # Custom dataloader to create CAMs - batch size set to 1
-        dataloader_val_cam = ut.DataLoader(batch_val,
+        dataloader_val_cam = ut.DataLoader(self.test_dataset,
                                            batch_size=1,
                                            shuffle=True,
                                            pin_memory=True)
