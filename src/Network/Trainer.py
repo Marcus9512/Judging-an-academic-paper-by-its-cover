@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as opt
 import torch.utils.data as ut
 
-from sklearn.metrics import accuracy_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, roc_auc_score
 
 from datetime import datetime
 from src.Data_processing.Paper_dataset import *
@@ -234,7 +234,7 @@ class Trainer:
                         if i_batch % eval_every == 0:
 
                             eval_true_positive, eval_false_positive, \
-                                eval_true_negative, eval_false_negative = 0.0, 0.0, 0.0, 0.0
+                                eval_true_negative, eval_false_negative, eval_roc_auc = 0.0, 0.0, 0.0, 0.0, 0.0
                             with tqdm(desc="Evaluation", total=len(dataloader_val)) as eval_progress_bar:
                                 # Set eval mode
                                 model.eval()
@@ -261,6 +261,7 @@ class Trainer:
                                     eval_false_positive += ((eval_label == False) & (eval_predictions == True)).sum()
                                     eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
                                     eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
+                                    eval_roc_auc = (roc_auc_score(eval_label, eval_predictions) + eval_roc_auc)/2
 
                                 # To avoid zero division
                                 epsilon = 1e-8
@@ -291,6 +292,8 @@ class Trainer:
                                 eval_progress_bar.write(f"train recall {train_recall}")
                                 eval_progress_bar.write(f"train accuracy {train_accuracy}")
 
+                                eval_progress_bar.write(f"eval auc_score {eval_roc_auc}")
+
                                 # Log to comet
                                 if self.log_to_comet:
                                     self.experiment.log_metric(f"eval - Loss", eval_loss / len(dataloader_val))
@@ -305,6 +308,8 @@ class Trainer:
                                     self.experiment.log_metric(f"train precision", train_precision)
                                     self.experiment.log_metric(f"train recall", train_recall)
                                     self.experiment.log_metric(f"train accuracy", train_accuracy)
+
+                                    self.experiment.log_metric(f"eval auc_score", eval_roc_auc)
 
                                 # Set back to train
                                 model.train()
