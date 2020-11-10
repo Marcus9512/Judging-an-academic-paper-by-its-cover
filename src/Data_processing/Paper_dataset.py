@@ -29,7 +29,7 @@ class Paper_dataset(Dataset):
         self.width = width
         self.height = height
 
-        self.transform = Augmentations([0.2, 0, 0.16, 0.16, 0.16, 0.16, 0.16], self.height, self.width, 7)
+        self.transform = Augmentations([0.36, 0, 0.16, 0.16, 0.16, 0.16], self.height, self.width, num_trans=6)
 
         # Set global path and path to meta file
         self.data_path = data_path
