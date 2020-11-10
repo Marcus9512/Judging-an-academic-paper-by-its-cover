@@ -15,6 +15,7 @@ class Augmentations():
         self.num_trans = num_trans
         np.random.seed(34)
 
+
     #https://discuss.pytorch.org/t/how-to-add-noise-to-mnist-dataset-when-using-pytorch/59745/2
     class add_gaussian_noise(object):
         def __init__(self, mean=0., std=1.):
@@ -40,7 +41,12 @@ class Augmentations():
 
 
     def get_transform(self):
+        #np.random.seed(34)
         random_transform = np.random.choice(self.num_trans, p=self.probs)
+
+        #print("R ",random_transform)
+        #
+        #print( "T ",self.num_trans)
 
         standard_transform = self.get_normalisation()
 
@@ -51,7 +57,7 @@ class Augmentations():
             return self.merge_transforms(self.get_resize_crop(), standard_transform)
             
         elif(random_transform == 2):
-            return self.merge_transforms(self.get_vertical_flip, standard_transform)
+            return self.merge_transforms(self.get_vertical_flip(), standard_transform)
 
         elif(random_transform == 3):
             return self.merge_transforms(standard_transform, self.get_gaussian_noise())
@@ -66,13 +72,14 @@ class Augmentations():
         elif(random_transform == 6):
             return self.merge_transforms(self.merge_transforms(self.get_vertical_flip(), self.get_gaussian_noise()),
                                          standard_transform)
-        
+        else:
+            print("Error in augmentation.py")
         
 
     def merge_transforms(self, transform1, transform2):
-        torchvision.transforms.Compose([transform1,
-                                        transform2,
-                                        ])
+        return torchvision.transforms.Compose([transform1,
+                                               transform2,
+                                              ])
 
     def get_normalisation(self):
         return torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
@@ -89,8 +96,7 @@ class Augmentations():
         return torchvision.transforms.Compose([torchvision.transforms.RandomVerticalFlip(p=1),
                                                ])
     def get_gaussian_noise(self):
-        return torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                                               self.add_gaussian_noise(0, 1)
+        return torchvision.transforms.Compose([self.add_gaussian_noise(0, 1)
                                                ])
     def get_gaussian_blur(self):
         return torchvision.transforms.Compose([self.GaussianBlur(kernel_size=3),
