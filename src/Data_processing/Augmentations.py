@@ -44,9 +44,9 @@ class Augmentations():
         #np.random.seed(34)
         random_transform = np.random.choice(self.num_trans, p=self.probs)
 
-        print("R ",random_transform)
+        #print("R ",random_transform)
         #
-        print( "T ",self.num_trans)
+        #print( "T ",self.num_trans)
 
         standard_transform = self.get_normalisation()
 
