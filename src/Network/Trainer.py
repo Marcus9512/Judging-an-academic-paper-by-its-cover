@@ -201,7 +201,8 @@ class Trainer:
                                  learn_rate,
                                  image_type,
                                  weight_decay,
-                                 eval_every: int = 100):
+                                 eval_every: int = 100,
+                                 use_scheduler: bool = True):
 
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
         params_to_update = model.parameters()
