@@ -163,8 +163,8 @@ class Trainer:
                                               dataloader_val,
                                               epochs,
                                               learn_rate,
-                                              image_type=image_type,
-                                              weight_decay=weight_decay,
+                                              image_type,
+                                              weight_decay,
                                               use_scheduler=use_scheduler)
 
         # Custom dataloader to create CAMs - batch size set to 1
