@@ -234,7 +234,8 @@ class Trainer:
                         if i_batch % eval_every == 0:
 
                             eval_true_positive, eval_false_positive, \
-                                eval_true_negative, eval_false_negative, eval_roc_auc = 0.0, 0.0, 0.0, 0.0, 0.0
+                                eval_true_negative, eval_false_negative = 0.0, 0.0, 0.0, 0.0
+                            eval_all_labels, eval_all_preds = [],[]
                             with tqdm(desc="Evaluation", total=len(dataloader_val)) as eval_progress_bar:
                                 # Set eval mode
                                 model.eval()
@@ -261,7 +262,9 @@ class Trainer:
                                     eval_false_positive += ((eval_label == False) & (eval_predictions == True)).sum()
                                     eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
                                     eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
-                                    eval_roc_auc = (roc_auc_score(eval_label, eval_predictions) + eval_roc_auc)/2
+                                    #eval_roc_auc = (roc_auc_score(eval_label, eval_predictions) + eval_roc_auc)/2
+                                    eval_all_labels = eval_all_labels.append(eval_label)
+                                    eval_all_preds = eval_all_preds.append(eval_predictions)
 
                                 # To avoid zero division
                                 epsilon = 1e-8
@@ -272,6 +275,8 @@ class Trainer:
                                 eval_accuracy = (eval_true_positive + eval_true_negative) / \
                                                 (eval_true_positive + eval_true_negative
                                                  + eval_false_negative + eval_false_positive + epsilon)
+
+                                eval_roc_auc = roc_auc_score(eval_all_labels, eval_all_preds)
 
                                 """Calculate train metrics"""
                                 train_precision = train_true_positive / (train_true_positive + train_false_positive + epsilon)
