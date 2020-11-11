@@ -101,7 +101,7 @@ class Trainer:
             pass
 
     def train(self, model, batch_size, learn_rate, epochs, image_type,
-                 weight_decay: float = 1e-6, use_scheduler: bool = True):
+                 weight_decay: float = 1e-6, scheduler_mode = None):
 
         '''
         Performs a train and test cycle at the given model
@@ -202,7 +202,7 @@ class Trainer:
                                  image_type,
                                  weight_decay,
                                  eval_every: int = 100,
-                                 use_scheduler: bool = True):
+                                 scheduler_mode = None):
 
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
         params_to_update = model.parameters()
