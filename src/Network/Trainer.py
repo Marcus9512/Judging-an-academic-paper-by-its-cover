@@ -101,7 +101,7 @@ class Trainer:
             pass
 
     def train(self, model, batch_size, learn_rate, epochs, image_type,
-                 weight_decay: float = 1e-6, scheduler_mode = None):
+                 weight_decay: float = 1e-6, scheduler_mode = "cosine_annealing"):
 
         '''
         Performs a train and test cycle at the given model
@@ -346,7 +346,7 @@ class Trainer:
 
                         loss.backward()
                         optimizer.step()
-                        if use_scheduler:
+                        if scheduler_mode:
                             scheduler.step()
 
                         train_progress_bar.update()
