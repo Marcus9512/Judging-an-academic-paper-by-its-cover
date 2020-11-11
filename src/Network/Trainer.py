@@ -165,7 +165,7 @@ class Trainer:
                                               learn_rate,
                                               image_type,
                                               weight_decay,
-                                              use_scheduler=use_scheduler)
+                                              scheduler_mode=None)
 
         # Custom dataloader to create CAMs - batch size set to 1
         dataloader_val_cam = ut.DataLoader(self.test_dataset,
@@ -218,8 +218,13 @@ class Trainer:
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
-        if use_scheduler:
+        if scheduler_mode == "cosine_annealing":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
+        elif scheduler_mode == "step_lr":
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=(int(len(dataloader_train) / 5)))
+            
+
+        
 
         i_batch = 0
         train_loss = 0

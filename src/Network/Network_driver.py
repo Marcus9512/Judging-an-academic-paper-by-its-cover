@@ -69,7 +69,6 @@ def get_model(dataset_type, model, pretrain, freeze_pretrain):
 
     return get_resnet_model(channels, model, pretrain, freeze_pretrain)
 
-
 def coarse_grain_search(args,
                         network_type,
                         width,
@@ -79,7 +78,7 @@ def coarse_grain_search(args,
                         batch_size_test = True
                         ):
     
-    use_scheduler = False
+    scheduler_mode = "cosine_annealing"
     debug = True
     pretrain = True
     runs = []
@@ -88,79 +87,7 @@ def coarse_grain_search(args,
         "batch_size": args.batch_size,
         "weight_decay": 1e-6,
         "epochs": args.epochs,
-        "use_scheduler": use_scheduler
-        }
-
-    if learn_rate_test:
-        learn_rates = [10**-i for i in range(4, 9)]
-        for lr in learn_rates:
-            run = generic_run.copy()
-            run['learning_rate'] = lr
-            runs.append(run)
-    
-    if weight_decay_test:
-        weight_decays = [10**-i for i in range(6, 9)]
-        for weight_decay in weight_decays:
-            run = generic_run.copy()
-            run['weight_decay'] = weight_decay
-            runs.append(run)
-            
-    if batch_size_test:
-        batch_sizes = [10, 25, 50]
-        for batch_size in batch_sizes:
-            run = generic_run.copy()
-            run['batch_size'] = 'batch_size'
-            runs.append(run)
-
-    train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
-    test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
-
-    trainer = Trainer(train_dataset,
-        test_dataset,
-        logger=logger,
-        pretrained=args.pretrain,
-        network_type=network_type,
-        dataset_type=args.dataset,
-        log_to_comet=not debug,
-        create_heatmaps=args.create_heatmaps)
-
-    for i, run in enumerate(runs):
-        print(f"################################ Running run {i}/{len(runs)}################################")
-        print(f"Run {run}:", run)
-        model = get_model(args.dataset, network_type, pretrain=args.pretrain, freeze_pretrain=args.freeze)
-        validation_recall, validation_precision = trainer.train(model=model,
-                batch_size=run['batch_size'],
-                learn_rate=run['learning_rate'],
-                epochs=run['epochs'],
-                image_type=args.dataset.value,
-                weight_decay=run['weight_decay'],
-                use_scheduler=run['use_scheduler'])
-        run['run'] = i
-        run['validation_recall'] = validation_recall
-        run['validation_precision'] = validation_precision
-        print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
-        with open('coarse_grain_results.json', 'w') as json_file:
-            json.dump(run, json_file)
-
-def coarse_grain_search(args,
-                        network_type,
-                        width,
-                        height,
-                        learn_rate_test = True,
-                        weight_decay_test = True,
-                        batch_size_test = True
-                        ):
-    
-    use_scheduler = False
-    debug = True
-    pretrain = True
-    runs = []
-    generic_run = {
-        "learning_rate": args.lr,
-        "batch_size": args.batch_size,
-        "weight_decay": 1e-6,
-        "epochs": args.epochs,
-        "use_scheduler": use_scheduler
+        "scheduler_mode": scheduler_mode
         }
 
     if learn_rate_test:
@@ -198,8 +125,6 @@ def coarse_grain_search(args,
         create_heatmaps=args.create_heatmaps,
         )
 
-        
-
     for i, run in enumerate(runs):
         print(f"################################ Running run {i}/{len(runs)} ################################")
         print(f"Run {i}: {run}")
@@ -210,7 +135,7 @@ def coarse_grain_search(args,
                 epochs=run['epochs'],
                 image_type=args.dataset.value,
                 weight_decay=run['weight_decay'],
-                use_scheduler=run['use_scheduler'])
+                scheduler_mode=run['scheduler_mode'])
         run['run'] = i
         run['validation_recall'] = validation_recall
         run['validation_precision'] = validation_precision
@@ -232,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretrain", action="store_true")
     parser.add_argument("--freeze", action="store_true")
     parser.add_argument("--create_heatmaps", action="store_true")
-    parser.add_argument("--use_scheduler", action="store_true")
+    parser.add_argument("--scheduler_mode", action="store_true")
     parser.add_argument("--coarse_grain_search", action="store_true")
 
     args = parser.parse_args()
@@ -270,7 +195,7 @@ if __name__ == "__main__":
                     learn_rate=args.lr,
                     epochs=args.epochs,
                     image_type=args.dataset.value,
-                    use_scheduler=args.use_scheduler)
+                    scheduler_mode=args.scheduler_mode)
    
     logger.info(
         f"Execution time was {time.time() - timestamp} seconds")
