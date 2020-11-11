@@ -189,12 +189,16 @@ def coarse_grain_search(args,
 
     trainer = Trainer(train_dataset,
         test_dataset,
-        logger=logger,
-        pretrained=args.pretrain,
-        network_type=network_type,
-        dataset_type=args.dataset,
+        logger,
+        args.dataset,
+        args.network_type,
+        args.pretrain,
+        args.freeze,
         log_to_comet=not debug,
-        create_heatmaps=args.create_heatmaps)
+        create_heatmaps=args.create_heatmaps,
+        )
+
+        
 
     for i, run in enumerate(runs):
         print(f"################################ Running run {i}/{len(runs)} ################################")
