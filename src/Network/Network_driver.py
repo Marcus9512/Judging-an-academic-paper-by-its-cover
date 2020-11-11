@@ -199,7 +199,7 @@ def coarse_grain_search(args,
     for i, run in enumerate(runs):
         print(f"################################ Running run {i}/{len(runs)} ################################")
         print(f"Run {i}: {run}")
-        model = get_model(args.dataset, network_type, args.pretrain)
+        model = get_model(args.dataset, network_type, args.pretrain, args.freeze)
         validation_recall, validation_precision = trainer.train(model=model,
                 batch_size=run['batch_size'],
                 learn_rate=run['learning_rate'],
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=Mode, choices=list(Mode), required=True)
     parser.add_argument("--lr", type=float, help="learn rate", default=0.0001)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)
-    parser.add_argument("--epochs", type=int, help="Number of epochs", default=50)
+    parser.add_argument("--epochs", type=int, help="Number of epochs", default=10)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--pretrain", action="store_true")
     parser.add_argument("--freeze", action="store_true")
