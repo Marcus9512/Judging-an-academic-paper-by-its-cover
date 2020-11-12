@@ -2,11 +2,12 @@ from torch.utils.data import *
 from os import path
 from src.Tools.open_review_dataset import *
 from randaugment import RandAugment
-from src.Data_processing.Augmentations import*
+from src.Data_processing.Augmentations import *
 
 import pandas as pd
 import matplotlib.pyplot as plt
 from src.Data_processing.Transformation_wraper import *
+
 
 class Paper_dataset(Dataset):
     '''
@@ -35,7 +36,6 @@ class Paper_dataset(Dataset):
         self.data_path = data_path
         path_meta = os.path.join(data_path, "meta.csv")
 
-
         if dataset_type == Mode.RGBFrontPage:
             self.dataset_type = "-rgb-frontpage-"
         elif dataset_type == Mode.GSFrontPage:
@@ -57,7 +57,7 @@ class Paper_dataset(Dataset):
 
         # RandAugment source https://pypi.org/project/randaugment/
 
-        #self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
+        # self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
 
         if print_csv:
             print(self.csv_data.index)
@@ -90,9 +90,7 @@ class Paper_dataset(Dataset):
             if not path.exists(p):
                 remove_element.append(i)
 
-        #remove = len(remove_element)
         csv = csv.drop(index=remove_element)
-        #length2 = len(csv.index)
 
         if self.train:
             train_condition = csv.year != 2020
@@ -110,7 +108,6 @@ class Paper_dataset(Dataset):
 
     def __len__(self):
         return self.len
-
 
     def __getitem__(self, item):
 
@@ -130,10 +127,6 @@ class Paper_dataset(Dataset):
 
         ret["image"] = image
 
-        ret['label'] = np.array(data['accepted'], dtype=np.float32)
-
-        ret["abstract"] = data["abstract"]
-        ret["title"] = data["title"]
-        ret["authors"] = data["authors"]
+        ret['label'] = np.array([data['accepted']], dtype=np.float32)
 
         return ret

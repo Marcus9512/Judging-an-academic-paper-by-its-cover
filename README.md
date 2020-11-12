@@ -63,6 +63,7 @@ python3 src/baselines.py\
     - [Inspect RGB BigImage](#inspect-rgb-big-image)
     - [Inspect RGB Channels](#inspect-rgb-channels)
     - [Inspect RGB Frontpage](#inspect-rgb-frontpage)
+- [Paper Gestalt Dataset](#paper-gestalt)
 - Train Baseline
     - [Random Forest](#random-forest)
     - [Logistic Regression](#logistic-regression)
@@ -180,6 +181,12 @@ python3 src/Tools/open_review_dataset.py \
   --mode=rgb-frontpage
 
 xdg-open $IMAGE_PATH.png
+```
+
+### Paper Gestalt
+
+```bash
+python3 src/Tools/paper_gestalt_dataset.py --gestalt_root=cvpr-data --data_root=data
 ```
 
 ### Random Forest

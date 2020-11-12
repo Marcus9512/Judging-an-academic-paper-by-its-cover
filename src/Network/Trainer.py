@@ -205,7 +205,6 @@ class Trainer:
             for name, param in model.named_parameters():
                 if param.requires_grad == True:
                     params_to_update.append(param)
-                    print("\t", name)
 
         # select optimizer type, current is SGD
         optimizer = opt.Adam(params_to_update, lr=learn_rate, weight_decay=weight_decay)
@@ -473,7 +472,6 @@ class Trainer:
                 test = test.to(device=self.main_device, dtype=torch.float32)
                 out = model(test)
                 label = label.to(device=self.main_device, dtype=torch.float32)
-                # print(out.shape)
 
                 probability = torch.sigmoid(out).cpu().detach().numpy()
                 label = label.cpu().detach().numpy()
