@@ -11,16 +11,20 @@ from src.Data_processing.Paper_dataset import *
 from tqdm import tqdm
 
 from matplotlib import pyplot as plt
-from PIL import Image
-from torchvision import models, transforms
-from torch.autograd import Variable
+
 from torch.nn import functional as F
-from torch import topk
 import numpy as np
 import skimage.transform
 
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 
+class Schedular_type(Enum):
+    Cosine = 'cosine'
+    Step = 'step'
+    No = 'none'
+
+    def __str__(self):
+        return self.value
 
 class Trainer:
 
@@ -101,7 +105,7 @@ class Trainer:
             pass
 
     def train(self, model, batch_size, learn_rate, epochs, image_type,
-                 weight_decay: float = 1e-6, scheduler_mode = "cosine_annealing"):
+                 weight_decay: float = 1e-6, scheduler_mode = Schedular_type.No):
 
         '''
         Performs a train and test cycle at the given model
@@ -165,7 +169,7 @@ class Trainer:
                                               learn_rate,
                                               image_type,
                                               weight_decay,
-                                              scheduler_mode=None)
+                                              scheduler_mode= scheduler_mode)
 
         # Custom dataloader to create CAMs - batch size set to 1
         dataloader_val_cam = ut.DataLoader(self.test_dataset,
@@ -202,7 +206,7 @@ class Trainer:
                                  image_type,
                                  weight_decay,
                                  eval_every: int = 100,
-                                 scheduler_mode = None):
+                                 scheduler_mode = Schedular_type.No ):
 
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
         params_to_update = model.parameters()
@@ -217,10 +221,17 @@ class Trainer:
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
-        if scheduler_mode == "cosine_annealing":
+        use_scheduler = True
+
+        if scheduler_mode == Schedular_type.Cosine:
+            self.logger.info(f"Using cosine")
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
-        elif scheduler_mode == "step_lr":
+        elif scheduler_mode == Schedular_type.Step:
+            self.logger.info(f"Using step")
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=(int(len(dataloader_train) / 5)))
+        else:
+            self.logger.info(f"Using no scheduler")
+            use_scheduler = False
             
 
         
@@ -345,7 +356,7 @@ class Trainer:
 
                         loss.backward()
                         optimizer.step()
-                        if scheduler_mode:
+                        if use_scheduler:
                             scheduler.step()
 
                         train_progress_bar.update()
@@ -432,7 +443,7 @@ class Trainer:
             data = next(iter(dataloader_val), None)
 
             if data == None:
-                logger.info(f"CAM could not create 2 images of all types - returning to run tests")
+                self.logger.info(f"CAM could not create 2 images of all types - returning to run tests")
                 return
 
             image = data['image'][0].to(device=self.main_device, dtype=torch.float32)
@@ -461,11 +472,8 @@ class Trainer:
                 self.create_CAM(model, image, image_type, label, "false_positive " + str(false_positive))
                 false_positive = false_positive + 1
 
-    def test_from_file(self, model_path, model, dataloader, prefix: str):
-        model.load_state_dict(torch.load(model_path))
-        self.test_model(model=model, dataloader=dataloader, prefix=prefix)
 
-    def test_model(self, model, dataloader, batch_size: int, prefix: str, print_res=False):
+    def test_model(self, model, dataloader, batch_size: int, prefix: str):
         len_test = len(dataloader)
 
         self.logger.info(f"------{prefix}--------")
