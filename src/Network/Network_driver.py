@@ -5,7 +5,7 @@ Our "main" method.
 
 import sys
 import os
-import json
+import csv
 
 # Fixes python path for some 
 sys.path.append(os.getcwd())
@@ -140,8 +140,15 @@ def coarse_grain_search(args,
         run['validation_recall'] = validation_recall
         run['validation_precision'] = validation_precision
         print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
-        with open('coarse_grain_results.json', 'w') as json_file:
-            json.dump(run, json_file)
+        
+        with open('coarse_grain_results.csv', 'w', newline='') as csvfile:
+            fieldnames = ["learning_rate","batch_size",
+                            "weight_decay","epochs","scheduler_mode","run",
+                            "validation_recall", "validation_precision"]
+            writer.writeheader()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writerow(run)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
