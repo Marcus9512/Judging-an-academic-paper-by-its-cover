@@ -150,14 +150,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=str, help="Base path of dataset", required=True)
     parser.add_argument("--dataset", type=Mode, choices=list(Mode), required=True)
+    parser.add_argument("--scheduler_mode",help="cosin step or none",type=Schedular_type, choices=list(Schedular_type), required=True)
+
     parser.add_argument("--lr", type=float, help="learn rate", default=0.0001)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=10)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--pretrain", action="store_true")
-    parser.add_argument("--freeze", action="store_true")
+    parser.add_argument("--freeze",action="store_true")
     parser.add_argument("--create_heatmaps", action="store_true")
-    parser.add_argument("--scheduler_mode", action="store_true")
     parser.add_argument("--coarse_grain_search", action="store_true")
 
     args = parser.parse_args()
@@ -170,7 +171,8 @@ if __name__ == "__main__":
     network_type = Network_type.Resnet34
 
     logger.info(f"Using {network_type}")
-    
+
+    timestamp = time.time()
     if args.coarse_grain_search:
         coarse_grain_search(args, network_type, width, height)
     else: 
@@ -179,7 +181,7 @@ if __name__ == "__main__":
         train_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=True)
         test_dataset = Paper_dataset(args.base_path, args.dataset, width, height, train=False)
 
-        timestamp = time.time()
+
         trainer = Trainer(train_dataset,
                         test_dataset,
                         logger=logger,
