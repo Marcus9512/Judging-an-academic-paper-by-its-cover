@@ -147,10 +147,13 @@ def coarse_grain_search(args,
         run['run'] = i
         run['validation_recall'] = validation_recall
         run['validation_precision'] = validation_precision
-        print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
-        
+        print(f"validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
         
         writer.writerow(run)
+        
+        # Write immediately to the file
+        csvfile.flush()
+        os.fsync(csvfile.fileno())
 
 
 if __name__ == "__main__":
