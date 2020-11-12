@@ -145,8 +145,9 @@ def coarse_grain_search(args,
             fieldnames = ["learning_rate","batch_size",
                             "weight_decay","epochs","scheduler_mode","run",
                             "validation_recall", "validation_precision"]
-            writer.writeheader()
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
             writer.writerow(run)
 
 
