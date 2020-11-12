@@ -150,7 +150,7 @@ def coarse_grain_search(args,
         print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
         
         
-            writer.writerow(run)
+        writer.writerow(run)
 
 
 if __name__ == "__main__":
