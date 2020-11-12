@@ -128,5 +128,4 @@ class Paper_dataset(Dataset):
         ret["image"] = image
 
         ret['label'] = np.array([data['accepted']], dtype=np.float32)
-
         return ret
