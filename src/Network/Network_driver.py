@@ -125,6 +125,14 @@ def coarse_grain_search(args,
         create_heatmaps=args.create_heatmaps,
         )
 
+    csvfile = open('coarse_grain_results.csv', 'w', newline='')
+    fieldnames = ["learning_rate","batch_size",
+                            "weight_decay","epochs","scheduler_mode","run",
+                            "validation_recall", "validation_precision"]
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+    writer.writeheader()
+
     for i, run in enumerate(runs):
         print(f"################################ Running run {i}/{len(runs)} ################################")
         print(f"Run {i}: {run}")
@@ -141,13 +149,7 @@ def coarse_grain_search(args,
         run['validation_precision'] = validation_precision
         print("validation_recall: {validation_recall} \n Validation precision: {validation_precision}")
         
-        with open('coarse_grain_results.csv', 'w', newline='') as csvfile:
-            fieldnames = ["learning_rate","batch_size",
-                            "weight_decay","epochs","scheduler_mode","run",
-                            "validation_recall", "validation_precision"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            
-            writer.writeheader()
+        
             writer.writerow(run)
 
 
