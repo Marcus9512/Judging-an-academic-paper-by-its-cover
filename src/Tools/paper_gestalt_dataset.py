@@ -52,7 +52,7 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path, data_root: pathl
             im_name = paper.stem
             with open(str(paper), "rb") as image:
                 im = Image.open(image, mode='r')
-                im = im.resize((256 * 2, 256 * 4))
+                im = im.resize((256 * 4, 256 * 2))
                 arr = np.array(im)
 
             np.save(str(binary_blob_output / f"{im_name}-rgb-bigimage-256-256.npy"), arr)

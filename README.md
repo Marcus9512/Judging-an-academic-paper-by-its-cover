@@ -31,25 +31,7 @@ In the main method in U_net.py you can select which tests that should be preform
 * Push your changes to the branch and create a pull-requst via this github page
 * If the tests passes, merge the and delete the branch
 
-## Model baselines
-Pick one model
-
-```bash
-MODEL=random-forest
-MODEL=logistic-regression
-```
-
-```bash
-MODE=rgb-bigimage
-python3 src/baselines.py\
-    --mode=${MODE?}\
-    --model=${MODEL?}\
-    --path_to_meta=data/meta.csv\
-    --width=256\
-    --height=256   
-```
-
-## Preprocessing
+## Instruction(s)
 
 - [Download dataset](#download-dataset)
 - Dataset Types
