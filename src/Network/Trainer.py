@@ -235,7 +235,8 @@ class Trainer:
 
                             eval_true_positive, eval_false_positive, \
                                 eval_true_negative, eval_false_negative = 0.0, 0.0, 0.0, 0.0
-                            eval_all_labels, eval_all_preds = [],[]
+                            eval_all_labels = []
+                            eval_all_preds = []
                             with tqdm(desc="Evaluation", total=len(dataloader_val)) as eval_progress_bar:
                                 # Set eval mode
                                 model.eval()
@@ -263,8 +264,11 @@ class Trainer:
                                     eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
                                     eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
                                     #eval_roc_auc = (roc_auc_score(eval_label, eval_predictions) + eval_roc_auc)/2
-                                    eval_all_labels = eval_all_labels.append(eval_label)
-                                    eval_all_preds = eval_all_preds.append(eval_predictions)
+
+
+                                    eval_all_labels.extend(eval_label)
+                                    eval_all_preds.extend(eval_predictions)
+                                    
 
                                 # To avoid zero division
                                 epsilon = 1e-8
