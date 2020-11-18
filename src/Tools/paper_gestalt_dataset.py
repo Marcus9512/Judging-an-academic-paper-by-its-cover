@@ -10,7 +10,9 @@ from tqdm import tqdm
 LOGGER_NAME = "GESTALT"
 
 
-def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path, data_root: pathlib.Path):
+def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
+                                    data_root: pathlib.Path,
+                                    remove_side_number: bool):
     logger = logging.getLogger(LOGGER_NAME)
 
     if not gestalt_root.is_dir():
@@ -47,21 +49,37 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path, data_root: pathl
     accepted = []
     paths = []
     year = []
-    for path, label in [(train_accepted, True), (test_accepted, True), (train_rejected, False), (test_rejected, False)]:
+    for is_test, path, label in [(False, train_accepted, True),
+                                 (True, test_accepted, True),
+                                 (False, train_rejected, False),
+                                 (True, test_rejected, False)]:
         for paper in tqdm(list(path.glob("*"))):
             im_name = paper.stem
-            with open(str(paper), "rb") as image:
-                im = Image.open(image, mode='r')
-                im = im.resize((256 * 4, 256 * 2))
-                arr = np.array(im)
+            im = Image.open(str(paper), mode='r')
+            if remove_side_number:
+                im = np.array(im)
+
+                im[203:213, 80:90] = 0
+                im[203:213, 250:260] = 0
+                im[203:213, 420:430] = 0
+                im[203:213, 590:600] = 0
+
+                im[423:433, 80:90] = 0
+                im[423:433, 250:260] = 0
+                im[423:433, 420:430] = 0
+                im[423:433, 590:600] = 0
+
+                im = Image.fromarray(im)
+
+            im = im.resize((256 * 4, 256 * 2))
+            arr = np.array(im)
 
             np.save(str(binary_blob_output / f"{im_name}-rgb-bigimage-256-256.npy"), arr)
 
             paths.append(relative_path + im_name)
             accepted.append(label)
 
-            # Gives us 20% test data
-            if np.random.rand() > 0.8:
+            if is_test:
                 year.append("2020")
             else:
                 year.append("2018")
@@ -77,7 +95,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gestalt_root", type=str, required=True)
     parser.add_argument("--data_root", type=str, required=True)
+    parser.add_argument("--remove_side_number", action="store_true")
 
     args = parser.parse_args()
 
-    convert_gestalt_to_rgb_bigimage(pathlib.Path(args.gestalt_root), pathlib.Path(args.data_root))
+    convert_gestalt_to_rgb_bigimage(pathlib.Path(args.gestalt_root), pathlib.Path(args.data_root), remove_side_number=args.remove_side_number)
