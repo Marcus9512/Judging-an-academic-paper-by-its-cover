@@ -13,7 +13,8 @@ LOGGER_NAME = "GESTALT"
 def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
                                     data_root: pathlib.Path,
                                     remove_side_number: bool,
-                                    remove_front_page: bool):
+                                    remove_front_page: bool,
+                                    remove_last_two_pages: bool):
     logger = logging.getLogger(LOGGER_NAME)
 
     if not gestalt_root.is_dir():
@@ -57,11 +58,16 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
         for paper in tqdm(list(path.glob("*"))):
             im_name = paper.stem
             im = Image.open(str(paper), mode='r')
+
+            if remove_last_two_pages:
+                im = np.array(im)
+                im[210:443, 330:700] = 0
+                im = Image.fromarray(im)
+
             if remove_front_page:
                 im = np.array(im)
                 im[0:200, 0:180] = 0
                 im = Image.fromarray(im)
-
 
             if remove_side_number:
                 im = np.array(im)
@@ -89,14 +95,14 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
                 im[413:443, 410:440] = 0
                 im[413:443, 580:610] = 0
 
-
-
                 im = Image.fromarray(im)
 
             im = im.resize((256 * 4, 256 * 2))
             arr = np.array(im)
 
-            np.save(str(binary_blob_output / f"{im_name}-rgb-bigimage-256-256.npy"), arr)
+            np.save(
+                str(binary_blob_output /
+                    f"{im_name}-rgb-bigimage-256-256.npy"), arr)
 
             paths.append(relative_path + im_name)
             accepted.append(label)
@@ -106,8 +112,11 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
             else:
                 year.append("2018")
 
-    pd.DataFrame({"paper_path": paths, "accepted": accepted, "year": year}
-                 ).to_csv(str(data_root / "meta.csv"), index=False)
+    pd.DataFrame({
+        "paper_path": paths,
+        "accepted": accepted,
+        "year": year
+    }).to_csv(str(data_root / "meta.csv"), index=False)
 
 
 if __name__ == "__main__":
@@ -119,10 +128,13 @@ if __name__ == "__main__":
     parser.add_argument("--data_root", type=str, required=True)
     parser.add_argument("--remove_side_number", action="store_true")
     parser.add_argument("--remove_front_page", action="store_true")
+    parser.add_argument("--remove_last_two_pages", action="store_true")
 
     args = parser.parse_args()
 
-    convert_gestalt_to_rgb_bigimage(pathlib.Path(args.gestalt_root), 
-            pathlib.Path(args.data_root), 
-            remove_side_number=args.remove_side_number,
-            remove_front_page=args.remove_front_page)
+    convert_gestalt_to_rgb_bigimage(
+        pathlib.Path(args.gestalt_root),
+        pathlib.Path(args.data_root),
+        remove_side_number=args.remove_side_number,
+        remove_front_page=args.remove_front_page,
+        remove_last_two_pages=args.remove_last_two_pages)
