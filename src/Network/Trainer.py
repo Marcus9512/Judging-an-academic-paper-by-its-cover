@@ -175,10 +175,11 @@ class Trainer:
         dataloader_val_cam = ut.DataLoader(self.test_dataset,
                                            batch_size=1,
                                            shuffle=True,
-                                           pin_memory=True)
+                                           pin_memory=True
+                                           )
 
         if self.create_heatmaps:
-            self.create_CAMs(model, dataloader_val_cam, image_type)
+            self.create_CAMs(model, dataloader_val_cam, image_type, num_images=5)
 
         # Test model
         _, training_recall, training_precision = self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
@@ -503,9 +504,13 @@ class Trainer:
         recall = recall_score(y_true=labels, y_pred=preds)
         precision = precision_score(y_true=labels, y_pred=preds)
 
+        num_class1 = labels.count(1)
+        num_class2 = len(labels) - num_class1
+
         self.logger.info(f"Accuracy: {accuracy}%")
         self.logger.info(f"Recall: {recall}")
         self.logger.info(f"Precision: {precision}%")
+        self.logger.info(f"Distribution: {num_class1} {num_class2}")
 
         # Log to comet
         if self.log_to_comet:
