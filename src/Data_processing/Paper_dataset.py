@@ -36,14 +36,18 @@ class Paper_dataset(Dataset):
         self.data_path = data_path
         path_meta = os.path.join(data_path, "meta.csv")
 
+        self.channels = False
+
         if dataset_type == Mode.RGBFrontPage:
             self.dataset_type = "-rgb-frontpage-"
         elif dataset_type == Mode.GSFrontPage:
             self.dataset_type = "-gs-frontpage-"
         elif dataset_type == Mode.GSChannels:
             self.dataset_type = "-gs-channels-"
+            self.channels = True
         elif dataset_type == Mode.RGBChannels:
             self.dataset_type = "-rgb-channels-"
+            self.channels = True
         elif dataset_type == Mode.RGBBigImage:
             self.dataset_type = "-rgb-bigimage-"
         elif dataset_type == Mode.GSBigImage:
@@ -118,12 +122,16 @@ class Paper_dataset(Dataset):
         ret = {}
 
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
-        image = Image.fromarray(np.uint8(image))
 
-        if self.train:
-            image = self.transform.get_transform()(image)
+        if not self.channels:
+            image = Image.fromarray(np.uint8(image))
+            if self.train:
+                image = self.transform.get_transform()(image)
+            else:
+                image = self.transform.get_normalisation()(image)
         else:
-            image = self.transform.get_normalisation()(image)
+            image = image.transpose((0,3, 1, 2))
+            image = image.reshape((-1, 256, 256))
 
         ret["image"] = image
 
