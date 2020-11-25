@@ -619,7 +619,7 @@ def inspect_binary_blob(path_to_blob: str, mode: Mode):
         plt.savefig(f"{path_to_blob}.png")
     elif mode == Mode.RGBFrontPage:
         plt.figure(figsize=(10, 6))
-        plt.imshow(binary_blob[0])
+        plt.imshow(binary_blob)
         plt.axis("off")
         plt.savefig(f"{path_to_blob}.png")
     else:
