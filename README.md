@@ -31,25 +31,7 @@ In the main method in U_net.py you can select which tests that should be preform
 * Push your changes to the branch and create a pull-requst via this github page
 * If the tests passes, merge the and delete the branch
 
-## Model baselines
-Pick one model
-
-```bash
-MODEL=random-forest
-MODEL=logistic-regression
-```
-
-```bash
-MODE=rgb-bigimage
-python3 src/baselines.py\
-    --mode=${MODE?}\
-    --model=${MODEL?}\
-    --path_to_meta=data/meta.csv\
-    --width=256\
-    --height=256   
-```
-
-## Preprocessing
+## Instruction(s)
 
 - [Download dataset](#download-dataset)
 - Dataset Types
@@ -63,6 +45,7 @@ python3 src/baselines.py\
     - [Inspect RGB BigImage](#inspect-rgb-big-image)
     - [Inspect RGB Channels](#inspect-rgb-channels)
     - [Inspect RGB Frontpage](#inspect-rgb-frontpage)
+- [Paper Gestalt Dataset](#paper-gestalt)
 - Train Baseline
     - [Random Forest](#random-forest)
     - [Logistic Regression](#logistic-regression)
@@ -180,6 +163,12 @@ python3 src/Tools/open_review_dataset.py \
   --mode=rgb-frontpage
 
 xdg-open $IMAGE_PATH.png
+```
+
+### Paper Gestalt
+
+```bash
+python3 src/Tools/paper_gestalt_dataset.py --gestalt_root=cvpr-data --data_root=data
 ```
 
 ### Random Forest

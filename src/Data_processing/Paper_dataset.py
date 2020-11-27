@@ -2,11 +2,12 @@ from torch.utils.data import *
 from os import path
 from src.Tools.open_review_dataset import *
 from randaugment import RandAugment
-from src.Data_processing.Augmentations import*
+from src.Data_processing.Augmentations import *
 
 import pandas as pd
 import matplotlib.pyplot as plt
 from src.Data_processing.Transformation_wraper import *
+
 
 class Paper_dataset(Dataset):
     '''
@@ -35,6 +36,7 @@ class Paper_dataset(Dataset):
         self.data_path = data_path
         path_meta = os.path.join(data_path, "meta.csv")
 
+        self.channels = False
 
         if dataset_type == Mode.RGBFrontPage:
             self.dataset_type = "-rgb-frontpage-"
@@ -42,8 +44,10 @@ class Paper_dataset(Dataset):
             self.dataset_type = "-gs-frontpage-"
         elif dataset_type == Mode.GSChannels:
             self.dataset_type = "-gs-channels-"
+            self.channels = True
         elif dataset_type == Mode.RGBChannels:
             self.dataset_type = "-rgb-channels-"
+            self.channels = True
         elif dataset_type == Mode.RGBBigImage:
             self.dataset_type = "-rgb-bigimage-"
         elif dataset_type == Mode.GSBigImage:
@@ -57,7 +61,7 @@ class Paper_dataset(Dataset):
 
         # RandAugment source https://pypi.org/project/randaugment/
 
-        #self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
+        # self.transformations = Transformation_wraper(strong_augmentation, num_transformations)
 
         if print_csv:
             print(self.csv_data.index)
@@ -90,9 +94,7 @@ class Paper_dataset(Dataset):
             if not path.exists(p):
                 remove_element.append(i)
 
-        #remove = len(remove_element)
         csv = csv.drop(index=remove_element)
-        #length2 = len(csv.index)
 
         if self.train:
             train_condition = csv.year != 2020
@@ -111,7 +113,6 @@ class Paper_dataset(Dataset):
     def __len__(self):
         return self.len
 
-
     def __getitem__(self, item):
 
         # Load data from row item, note that the entire csv file is located in the memory, might be a problem if
@@ -121,19 +122,18 @@ class Paper_dataset(Dataset):
         ret = {}
 
         image = np.load(self.data_path + "/" + data["paper_path"] + self.dataset_type + self.res + ".npy")
-        image = Image.fromarray(np.uint8(image))
 
-        if self.train:
-            image = self.transform.get_transform()(image)
+        if not self.channels:
+            image = Image.fromarray(np.uint8(image))
+            if self.train:
+                image = self.transform.get_transform()(image)
+            else:
+                image = self.transform.get_normalisation()(image)
         else:
-            image = self.transform.get_normalisation()(image)
+            image = image.transpose((0,3, 1, 2))
+            image = image.reshape((-1, 256, 256))
 
         ret["image"] = image
 
         ret['label'] = np.array([data['accepted']], dtype=np.float32)
-
-        ret["abstract"] = data["abstract"]
-        ret["title"] = data["title"]
-        ret["authors"] = data["authors"]
-
         return ret

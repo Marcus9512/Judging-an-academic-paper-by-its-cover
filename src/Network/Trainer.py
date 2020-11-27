@@ -11,16 +11,20 @@ from src.Data_processing.Paper_dataset import *
 from tqdm import tqdm
 
 from matplotlib import pyplot as plt
-from PIL import Image
-from torchvision import models, transforms
-from torch.autograd import Variable
+
 from torch.nn import functional as F
-from torch import topk
 import numpy as np
 import skimage.transform
 
 EXPERIMENT_LAUNCH_TIME = datetime.now()
 
+class Schedular_type(Enum):
+    Cosine = 'cosine'
+    Step = 'step'
+    No = 'none'
+
+    def __str__(self):
+        return self.value
 
 class Trainer:
 
@@ -100,7 +104,8 @@ class Trainer:
             print("Could not find pycuda and thus not show amazing stats about youre GPU, have you installed CUDA?")
             pass
 
-    def train(self, model, batch_size, learn_rate, epochs, image_type):
+    def train(self, model, batch_size, learn_rate, epochs, image_type,
+                 weight_decay: float = 1e-6, scheduler_mode = Schedular_type.No):
 
         '''
         Performs a train and test cycle at the given model
@@ -162,22 +167,27 @@ class Trainer:
                                               dataloader_val,
                                               epochs,
                                               learn_rate,
-                                              weight_decay=weight_decay,
-                                              image_type=image_type)
+                                              image_type,
+                                              weight_decay,
+                                              scheduler_mode= scheduler_mode)
 
         # Custom dataloader to create CAMs - batch size set to 1
         dataloader_val_cam = ut.DataLoader(self.test_dataset,
                                            batch_size=1,
                                            shuffle=True,
-                                           pin_memory=True)
+                                           pin_memory=True
+                                           )
 
         if self.create_heatmaps:
-            self.create_CAMs(model, dataloader_val_cam, image_type)
+            self.create_CAMs(model, dataloader_val_cam, image_type, num_images=5)
 
         # Test model
-        self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
-        self.test_model(model, dataloader_val, batch_size=batch_size, prefix="validation")
+        _, training_recall, training_precision = self.test_model(model, dataloader_train, batch_size=batch_size, prefix="train")
+        _, validation_recall, validation_precision = self.test_model(model, dataloader_val, batch_size=batch_size, prefix="validation")
         self.test_model(model, dataloader_test, batch_size=batch_size, prefix="test")
+
+        return validation_recall, validation_precision
+
 
     def save_model(self, model, image_type):
         path = "saved_nets"
@@ -196,7 +206,8 @@ class Trainer:
                                  learn_rate,
                                  image_type,
                                  weight_decay,
-                                 eval_every: int = 100):
+                                 eval_every: int = 100,
+                                 scheduler_mode = Schedular_type.No ):
 
         # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
         params_to_update = model.parameters()
@@ -205,15 +216,26 @@ class Trainer:
             for name, param in model.named_parameters():
                 if param.requires_grad == True:
                     params_to_update.append(param)
-                    print("\t", name)
 
         # select optimizer type, current is SGD
         optimizer = opt.Adam(params_to_update, lr=learn_rate, weight_decay=weight_decay)
 
         evaluation = nn.BCEWithLogitsLoss()  # if binary classification use BCEWithLogitsLoss
 
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
-        #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=(int(len(dataloader_train) / 5)))
+        use_scheduler = True
+
+        if scheduler_mode == Schedular_type.Cosine:
+            self.logger.info(f"Using cosine")
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(dataloader_train), 0.000001)
+        elif scheduler_mode == Schedular_type.Step:
+            self.logger.info(f"Using step")
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=(int(len(dataloader_train) / 5)))
+        else:
+            self.logger.info(f"Using no scheduler")
+            use_scheduler = False
+            
+
+        
 
         i_batch = 0
         train_loss = 0
@@ -349,7 +371,8 @@ class Trainer:
 
                         loss.backward()
                         optimizer.step()
-                        scheduler.step()
+                        if use_scheduler:
+                            scheduler.step()
 
                         train_progress_bar.update()
 
@@ -435,7 +458,7 @@ class Trainer:
             data = next(iter(dataloader_val), None)
 
             if data == None:
-                logger.info(f"CAM could not create 2 images of all types - returning to run tests")
+                self.logger.info(f"CAM could not create 2 images of all types - returning to run tests")
                 return
 
             image = data['image'][0].to(device=self.main_device, dtype=torch.float32)
@@ -464,11 +487,8 @@ class Trainer:
                 self.create_CAM(model, image, image_type, label, "false_positive " + str(false_positive))
                 false_positive = false_positive + 1
 
-    def test_from_file(self, model_path, model, dataloader, prefix: str):
-        model.load_state_dict(torch.load(model_path))
-        self.test_model(model=model, dataloader=dataloader, prefix=prefix)
 
-    def test_model(self, model, dataloader, batch_size: int, prefix: str, print_res=False):
+    def test_model(self, model, dataloader, batch_size: int, prefix: str):
         len_test = len(dataloader)
 
         self.logger.info(f"------{prefix}--------")
@@ -487,7 +507,6 @@ class Trainer:
                 test = test.to(device=self.main_device, dtype=torch.float32)
                 out = model(test)
                 label = label.to(device=self.main_device, dtype=torch.float32)
-                # print(out.shape)
 
                 probability = torch.sigmoid(out).cpu().detach().numpy()
                 label = label.cpu().detach().numpy()
@@ -499,12 +518,18 @@ class Trainer:
         recall = recall_score(y_true=labels, y_pred=preds)
         precision = precision_score(y_true=labels, y_pred=preds)
 
+        num_class1 = labels.count(1)
+        num_class2 = len(labels) - num_class1
+
         self.logger.info(f"Accuracy: {accuracy}%")
         self.logger.info(f"Recall: {recall}")
         self.logger.info(f"Precision: {precision}%")
+        self.logger.info(f"Distribution: {num_class1} {num_class2}")
 
         # Log to comet
         if self.log_to_comet:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
+
+        return accuracy, recall, precision
