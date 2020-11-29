@@ -285,8 +285,6 @@ class Trainer:
                                     eval_false_positive += ((eval_label == False) & (eval_predictions == True)).sum()
                                     eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
                                     eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
-                                    #eval_roc_auc = (roc_auc_score(eval_label, eval_predictions) + eval_roc_auc)/2
-
 
                                     eval_all_labels.extend(eval_label)
                                     eval_all_preds.extend(eval_predictions)
@@ -498,6 +496,8 @@ class Trainer:
         preds = []
         labels = []
 
+        test_all_labels = []
+        test_all_preds = []
         for i in dataloader:
 
             test = i["image"]
@@ -514,22 +514,28 @@ class Trainer:
                 labels.extend(label)
                 preds.extend(np.round(probability))
 
+                test_all_labels.extend(label.astype(bool))
+                test_all_preds.extend(np.round(probability).astype(bool))
+
         accuracy = accuracy_score(y_true=labels, y_pred=preds)
         recall = recall_score(y_true=labels, y_pred=preds)
         precision = precision_score(y_true=labels, y_pred=preds)
+        roc_auc = roc_auc_score(test_all_labels, test_all_preds)
 
         num_class1 = labels.count(1)
         num_class2 = len(labels) - num_class1
-
+        
         self.logger.info(f"Accuracy: {accuracy}%")
         self.logger.info(f"Recall: {recall}")
         self.logger.info(f"Precision: {precision}%")
         self.logger.info(f"Distribution: {num_class1} {num_class2}")
+        self.logger.info(f"AUC-score: {roc_auc}")
 
         # Log to comet
         if self.log_to_comet:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
+            self.experiment.log_metric(f"AUC-score: {roc_auc}")
 
         return accuracy, recall, precision
