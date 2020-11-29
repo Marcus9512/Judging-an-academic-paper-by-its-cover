@@ -105,7 +105,7 @@ class Trainer:
             pass
 
     def train(self, model, batch_size, learn_rate, epochs, image_type,
-                 weight_decay: float = 1e-6, scheduler_mode = Schedular_type.No):
+                 weight_decay: float = 1e-7, scheduler_mode = Schedular_type.No):
 
         '''
         Performs a train and test cycle at the given model
@@ -121,7 +121,7 @@ class Trainer:
         self.logger.info(f"\t Batch \t\t{batch_size}")
         self.logger.info(f"\t Learn rate \t{learn_rate}")
 
-        weight_decay = 1e-6
+
         if self.log_to_comet:
             self.experiment.log_parameter("Batch_size", batch_size)
             self.experiment.log_parameter("Learn_rate", learn_rate)

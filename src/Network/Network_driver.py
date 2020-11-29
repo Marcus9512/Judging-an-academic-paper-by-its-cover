@@ -166,6 +166,7 @@ if __name__ == "__main__":
     parser.add_argument("--scheduler_mode",help="cosin step or none",type=Schedular_type, choices=list(Schedular_type), required=True)
 
     parser.add_argument("--lr", type=float, help="learn rate", default=0.0001)
+    parser.add_argument("--wd", type=float, help="weight decay", default=1e-7)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=10)
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=10)
     parser.add_argument("--debug", action="store_true")
@@ -210,6 +211,7 @@ if __name__ == "__main__":
                     learn_rate=args.lr,
                     epochs=args.epochs,
                     image_type=args.dataset.value,
+                    weight_decay= args.wd,
                     scheduler_mode=args.scheduler_mode)
    
     logger.info(
