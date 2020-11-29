@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as opt
 import torch.utils.data as ut
 
-from sklearn.metrics import accuracy_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, roc_auc_score
 
 from datetime import datetime
 from src.Data_processing.Paper_dataset import *
@@ -257,6 +257,8 @@ class Trainer:
 
                             eval_true_positive, eval_false_positive, \
                                 eval_true_negative, eval_false_negative = 0.0, 0.0, 0.0, 0.0
+                            eval_all_labels = []
+                            eval_all_preds = []
                             with tqdm(desc="Evaluation", total=len(dataloader_val)) as eval_progress_bar:
                                 # Set eval mode
                                 model.eval()
@@ -284,6 +286,10 @@ class Trainer:
                                     eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
                                     eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
 
+                                    eval_all_labels.extend(eval_label)
+                                    eval_all_preds.extend(eval_predictions)
+                                    
+
                                 # To avoid zero division
                                 epsilon = 1e-8
 
@@ -293,6 +299,8 @@ class Trainer:
                                 eval_accuracy = (eval_true_positive + eval_true_negative) / \
                                                 (eval_true_positive + eval_true_negative
                                                  + eval_false_negative + eval_false_positive + epsilon)
+
+                                eval_roc_auc = roc_auc_score(eval_all_labels, eval_all_preds)
 
                                 """Calculate train metrics"""
                                 train_precision = train_true_positive / (train_true_positive + train_false_positive + epsilon)
@@ -313,6 +321,8 @@ class Trainer:
                                 eval_progress_bar.write(f"train recall {train_recall}")
                                 eval_progress_bar.write(f"train accuracy {train_accuracy}")
 
+                                eval_progress_bar.write(f"eval auc_score {eval_roc_auc}")
+
                                 # Log to comet
                                 if self.log_to_comet:
                                     self.experiment.log_metric(f"eval - Loss", eval_loss / len(dataloader_val))
@@ -327,6 +337,8 @@ class Trainer:
                                     self.experiment.log_metric(f"train precision", train_precision)
                                     self.experiment.log_metric(f"train recall", train_recall)
                                     self.experiment.log_metric(f"train accuracy", train_accuracy)
+
+                                    self.experiment.log_metric(f"eval auc_score", eval_roc_auc)
 
                                 # Set back to train
                                 model.train()
@@ -484,6 +496,8 @@ class Trainer:
         preds = []
         labels = []
 
+        test_all_labels = []
+        test_all_preds = []
         for i in dataloader:
 
             test = i["image"]
@@ -500,22 +514,28 @@ class Trainer:
                 labels.extend(label)
                 preds.extend(np.round(probability))
 
+                test_all_labels.extend(label.astype(bool))
+                test_all_preds.extend(np.round(probability).astype(bool))
+
         accuracy = accuracy_score(y_true=labels, y_pred=preds)
         recall = recall_score(y_true=labels, y_pred=preds)
         precision = precision_score(y_true=labels, y_pred=preds)
+        roc_auc = roc_auc_score(test_all_labels, test_all_preds)
 
         num_class1 = labels.count(1)
         num_class2 = len(labels) - num_class1
-
+        
         self.logger.info(f"Accuracy: {accuracy}%")
         self.logger.info(f"Recall: {recall}")
         self.logger.info(f"Precision: {precision}%")
         self.logger.info(f"Distribution: {num_class1} {num_class2}")
+        self.logger.info(f"AUC-score: {roc_auc}")
 
         # Log to comet
         if self.log_to_comet:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
+            self.experiment.log_metric(f"{prefix} - AUC-score:", roc_auc)
 
         return accuracy, recall, precision
