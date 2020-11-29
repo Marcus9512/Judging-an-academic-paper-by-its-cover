@@ -536,6 +536,6 @@ class Trainer:
             self.experiment.log_metric(f"{prefix} - accuracy", accuracy)
             self.experiment.log_metric(f"{prefix} - recall", recall)
             self.experiment.log_metric(f"{prefix} - precision", precision)
-            self.experiment.log_metric(f"AUC-score: {roc_auc}")
+            self.experiment.log_metric(f"{prefix} - AUC-score:", roc_auc)
 
         return accuracy, recall, precision
