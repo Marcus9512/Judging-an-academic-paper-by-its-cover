@@ -286,6 +286,9 @@ class Trainer:
                                     eval_true_negative += ((eval_label == False) & (eval_predictions == False)).sum()
                                     eval_false_negative += ((eval_label == True) & (eval_predictions == False)).sum()
 
+                                    eval_label = eval_data["label"].cpu().detach().numpy()
+                                    eval_predictions = eval_probability.cpu().detach().numpy()
+                                    
                                     eval_all_labels.extend(eval_label)
                                     eval_all_preds.extend(eval_predictions)
                                     
@@ -495,9 +498,8 @@ class Trainer:
 
         preds = []
         labels = []
+        preds_auc = []
 
-        test_all_labels = []
-        test_all_preds = []
         for i in dataloader:
 
             test = i["image"]
@@ -513,14 +515,12 @@ class Trainer:
                 
                 labels.extend(label)
                 preds.extend(np.round(probability))
-
-                test_all_labels.extend(label.astype(bool))
-                test_all_preds.extend(np.round(probability).astype(bool))
+                preds_auc.extend(probability)
 
         accuracy = accuracy_score(y_true=labels, y_pred=preds)
         recall = recall_score(y_true=labels, y_pred=preds)
         precision = precision_score(y_true=labels, y_pred=preds)
-        roc_auc = roc_auc_score(test_all_labels, test_all_preds)
+        roc_auc = roc_auc_score(labels, preds_auc)
 
         num_class1 = labels.count(1)
         num_class2 = len(labels) - num_class1
