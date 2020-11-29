@@ -49,11 +49,6 @@ class RemoveFromPage:
         paper[y:y + 30, x:x + 30] = 0
         return paper
 
-    @staticmethod
-    def remove_page(paper: np.ndarray, n):
-        return RemoveFromPage.remove_page(paper, n)
-
-
 def convert_gestalt_to_rgb_bigimage(
         gestalt_root: pathlib.Path, data_root: pathlib.Path,
         remove_side_number: bool, remove_front_page: bool,
