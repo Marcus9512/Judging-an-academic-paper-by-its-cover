@@ -11,7 +11,6 @@ LOGGER_NAME = "GESTALT"
 
 
 class RemoveFromPage:
-
     @staticmethod
     def remove_page(paper: np.ndarray, n: int) -> np.ndarray:
         paper = np.array(paper)
@@ -24,8 +23,9 @@ class RemoveFromPage:
         y_page_offset = 220
         y_page_size = 200
 
-        paper[y_page_number * y_page_offset: y_page_number * y_page_offset + y_page_size,
-             x_page_number * x_page_offset: x_page_number * x_page_offset + x_page_size] = 0
+        paper[y_page_number * y_page_offset:y_page_number * y_page_offset +
+              y_page_size, x_page_number *
+              x_page_offset:x_page_number * x_page_offset + x_page_size] = 0
 
         return paper
 
@@ -44,26 +44,21 @@ class RemoveFromPage:
         return paper
 
     @staticmethod
-    def remove_random_box(paper: np.ndarray):
+    def remove_box(paper: np.ndarray, x, y):
         paper = np.array(paper)
-        x = np.random.randint(0, 680)
-        y = np.random.randint(0, 440)
-        paper[y:y+30, x:x+30] = 0
+        paper[y:y + 30, x:x + 30] = 0
         return paper
 
     @staticmethod
-    def remove_random_page(paper: np.ndarray):
-        n = np.random.randint(0, 7)
+    def remove_page(paper: np.ndarray, n):
         return RemoveFromPage.remove_page(paper, n)
 
 
-def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
-                                    data_root: pathlib.Path,
-                                    remove_side_number: bool,
-                                    remove_front_page: bool,
-                                    remove_last_two_pages: bool,
-                                    boxes_to_remove: int,
-                                    pages_to_remove: int):
+def convert_gestalt_to_rgb_bigimage(
+        gestalt_root: pathlib.Path, data_root: pathlib.Path,
+        remove_side_number: bool, remove_front_page: bool,
+        remove_last_two_pages: bool, boxes_to_remove: int,
+        pages_to_remove: int):
     logger = logging.getLogger(LOGGER_NAME)
 
     if not gestalt_root.is_dir():
@@ -97,6 +92,15 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
 
     relative_path = 'papers/'
 
+    x, y = None, None
+    if boxes_to_remove:
+        x = np.random.randint(0, 680, size=boxes_to_remove)
+        y = np.random.randint(0, 440, size=boxes_to_remove)
+
+    n = None
+    if pages_to_remove:
+        n = np.random.randint(0, 7, pages_to_remove)
+
     accepted = []
     paths = []
     year = []
@@ -126,14 +130,14 @@ def convert_gestalt_to_rgb_bigimage(gestalt_root: pathlib.Path,
 
             if pages_to_remove:
                 im = np.array(im)
-                for _ in range(pages_to_remove):
-                    im = RemoveFromPage.remove_random_page(im)
+                for i in range(pages_to_remove):
+                    im = RemoveFromPage.remove_page(im, n[i])
                 im = Image.fromarray(im)
 
             if boxes_to_remove:
                 im = np.array(im)
-                for _ in range(boxes_to_remove):
-                    im = RemoveFromPage.remove_random_box(im)
+                for i in range(boxes_to_remove):
+                    im = RemoveFromPage.remove_box(im, x[i], y[i])
                 im = Image.fromarray(im)
 
             im = im.resize((256 * 4, 256 * 2))
