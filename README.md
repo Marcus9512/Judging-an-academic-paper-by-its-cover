@@ -1,4 +1,4 @@
-# DD2430
+# Judging an academic paper by its cover
 This project was done for the course DD2430, and is accompanied by [this report](https://github.com/Marcus9512/Judging-an-academic-paper-by-its-cover/blob/master/report/Project_17__Judging_an_academic_paper_by_its_cover%20(1).pdf).
 
 ## Requirements
